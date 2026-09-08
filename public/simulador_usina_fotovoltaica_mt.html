@@ -1,0 +1,1215 @@
+<!DOCTYPE html>
+<html lang="pt-BR" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Simulador de Usina Fotovoltaica de Média Tensão (55 kWp · 13.8 kV)</title>
+  <!-- Tailwind CSS via CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Chart.js via CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            solar: {
+              50: '#fffbeb',
+              500: '#f59e0b',
+              600: '#d97706',
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    @keyframes pulse-fast {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.4; }
+    }
+    .animate-pulse-fast {
+      animation: pulse-fast 1s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+    }
+  </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen font-sans antialiased selection:bg-amber-500 selection:text-slate-950">
+
+  <!-- TOP HEADER WITH TABS -->
+  <header class="bg-slate-900 border-b border-slate-800 sticky top-0 z-30 shadow-lg">
+    <div class="max-w-7xl mx-auto px-4 py-3">
+      <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-lg bg-amber-500 flex items-center justify-center text-slate-950 font-bold text-xl shadow-md shadow-amber-500/20">
+            ☀
+          </div>
+          <div>
+            <div class="flex items-center gap-2">
+              <h1 class="text-base sm:text-lg font-bold text-white tracking-tight">Simulador de Usina Fotovoltaica MT</h1>
+              <span class="px-2 py-0.5 text-xs font-semibold rounded bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                55 kWp · 13.8 kV
+              </span>
+            </div>
+            <p class="text-xs text-slate-400">100 módulos 550W (10 strings) · 2 Trackers 1-eixo · 2 Inversores 30kW · Cabine MT 50/51</p>
+          </div>
+        </div>
+
+        <div class="flex items-center gap-3">
+          <div id="statusBadge" class="flex items-center gap-2 px-3 py-1.5 rounded-lg border text-xs font-medium bg-emerald-950/40 border-emerald-600/50 text-emerald-300">
+            <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
+            <span id="statusBadgeText">Operação Normal em Rede MT</span>
+          </div>
+          <button onclick="resetSimulation()" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-xs font-medium transition">
+            Resetar Parâmetros
+          </button>
+        </div>
+      </div>
+
+      <!-- NAVIGATION TABS -->
+      <div class="flex items-center gap-2 mt-3 pt-2 border-t border-slate-800">
+        <button id="tabBtnDashboard" onclick="switchTab('dashboard')" class="flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition-all bg-amber-500 text-slate-950 shadow-md">
+          <span>📊 Aba 1: Dashboard e Geração</span>
+        </button>
+        <button id="tabBtnUnifilar" onclick="switchTab('unifilar')" class="flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition-all bg-slate-800/80 text-slate-300 hover:bg-slate-800 hover:text-white border border-slate-700/60">
+          <span>⚡ Aba 2: Diagrama Unifilar Interativo (SLD)</span>
+          <span class="text-[10px] px-1.5 py-0.2 rounded font-mono font-bold bg-rose-500/20 text-rose-300 border border-rose-500/30">
+            Chaves NA / NF
+          </span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- MAIN CONTAINER -->
+  <main class="max-w-7xl mx-auto px-4 py-5 space-y-5">
+
+    <!-- COMMON: TIME SLIDER & SOLAR CONDITIONS -->
+    <div class="bg-slate-900 border border-slate-800 rounded-xl p-4 shadow-md">
+      <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+        
+        <div class="flex-1 space-y-3">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
+              <span>🕒</span> Controle de Horário da Simulação
+            </span>
+            <div class="flex items-center gap-2">
+              <span id="lblTimeDisplay" class="text-2xl font-bold font-mono text-amber-400">12:00</span>
+              <span class="text-xs text-slate-400">h (06:00 às 18:00)</span>
+            </div>
+          </div>
+
+          <div class="space-y-1">
+            <input id="timeSlider" type="range" min="6" max="18" step="0.05" value="12" class="w-full h-2.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-amber-500" />
+            <div class="flex justify-between text-[11px] font-mono text-slate-400">
+              <span>06:00 (Nascer)</span>
+              <span>09:00</span>
+              <span class="text-amber-400 font-bold">12:00 (Zênite)</span>
+              <span>15:00</span>
+              <span>18:00 (Pôr do Sol)</span>
+            </div>
+          </div>
+
+          <div class="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-slate-800 text-xs">
+            <div class="flex items-center gap-2">
+              <button id="btnPlay" onclick="togglePlay()" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 font-semibold flex items-center gap-1">
+                <span id="playIcon">▶</span> <span id="playText">Animar Dia</span>
+              </button>
+              <div class="flex items-center rounded-lg bg-slate-800 p-0.5 border border-slate-700 text-[11px] font-mono">
+                <button onclick="setSpeed(1)" id="btnSpeed1" class="px-2 py-0.5 rounded bg-slate-700 text-amber-300">1x</button>
+                <button onclick="setSpeed(2)" id="btnSpeed2" class="px-2 py-0.5 rounded text-slate-400">2x</button>
+                <button onclick="setSpeed(4)" id="btnSpeed4" class="px-2 py-0.5 rounded text-slate-400">4x</button>
+              </div>
+            </div>
+
+            <div class="flex items-center gap-1 font-mono text-[11px]">
+              <span class="text-slate-500 mr-1 hidden sm:inline">Pular:</span>
+              <button onclick="setTime(6)" class="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700">06h</button>
+              <button onclick="setTime(9)" class="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700">09h</button>
+              <button onclick="setTime(12)" class="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700">12h</button>
+              <button onclick="setTime(15)" class="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700">15h</button>
+              <button onclick="setTime(18)" class="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700">18h</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Solar indicators box -->
+        <div class="lg:w-80 bg-slate-950/80 border border-slate-800 rounded-lg p-3 text-center grid grid-cols-3 gap-2">
+          <div class="bg-slate-900 p-2 rounded border border-slate-800">
+            <span class="text-[10px] text-slate-400 block">Ângulo Solar</span>
+            <span id="lblSunAngle" class="text-sm font-bold font-mono text-amber-400">0.0°</span>
+            <span id="lblSunDir" class="text-[9px] text-slate-500 block">Zênite</span>
+          </div>
+          <div class="bg-slate-900 p-2 rounded border border-slate-800">
+            <span class="text-[10px] text-slate-400 block">Elevação</span>
+            <span id="lblSunElevation" class="text-sm font-bold font-mono text-sky-400">75.0°</span>
+            <span class="text-[9px] text-slate-500 block">Horizonte</span>
+          </div>
+          <div class="bg-slate-900 p-2 rounded border border-slate-800">
+            <span class="text-[10px] text-slate-400 block">GHI Horiz.</span>
+            <span id="lblGhi" class="text-sm font-bold font-mono text-yellow-400">1000</span>
+            <span class="text-[9px] text-slate-500 block">W/m²</span>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- COMMON: CORE KPIS DASHBOARD (Inversor 1 Laranja, Inversor 2 Azul, MT Verde) -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <!-- Inversor 1 (Laranja / Amarelo) -->
+      <div class="bg-slate-900 border border-amber-500/30 rounded-xl p-4 shadow-md">
+        <div class="flex items-center justify-between">
+          <span class="text-xs font-bold uppercase tracking-wider text-amber-300 flex items-center gap-1.5">
+            <span class="w-2.5 h-2.5 rounded-full bg-amber-400"></span> Geração Inversor 1
+          </span>
+          <span class="px-1.5 py-0.5 text-[10px] font-mono rounded bg-amber-500/20 text-amber-300 border border-amber-500/30">
+            Strings 1-5 (30 kW)
+          </span>
+        </div>
+        <div class="mt-2 flex items-baseline gap-2">
+          <span id="kpiInv1" class="text-3xl font-mono font-extrabold text-amber-400">26.1</span>
+          <span class="text-sm font-semibold text-slate-400">kW CA</span>
+        </div>
+        <div class="mt-2 pt-2 border-t border-slate-800 text-xs text-slate-400 flex justify-between font-mono">
+          <span>CC: <span id="lblInv1Dc" class="text-amber-200">26.6 kW</span></span>
+          <span>I_BT: <span id="lblInv1Current" class="text-slate-200">39.6 A</span></span>
+          <span>η: <span class="text-emerald-400">98.2%</span></span>
+        </div>
+      </div>
+
+      <!-- Inversor 2 (Azul / Ciano) -->
+      <div class="bg-slate-900 border border-cyan-500/30 rounded-xl p-4 shadow-md">
+        <div class="flex items-center justify-between">
+          <span class="text-xs font-bold uppercase tracking-wider text-cyan-300 flex items-center gap-1.5">
+            <span class="w-2.5 h-2.5 rounded-full bg-cyan-400"></span> Geração Inversor 2
+          </span>
+          <span class="px-1.5 py-0.5 text-[10px] font-mono rounded bg-cyan-500/20 text-cyan-300 border border-cyan-500/30">
+            Strings 6-10 (30 kW)
+          </span>
+        </div>
+        <div class="mt-2 flex items-baseline gap-2">
+          <span id="kpiInv2" class="text-3xl font-mono font-extrabold text-cyan-400">26.1</span>
+          <span class="text-sm font-semibold text-slate-400">kW CA</span>
+        </div>
+        <div class="mt-2 pt-2 border-t border-slate-800 text-xs text-slate-400 flex justify-between font-mono">
+          <span>CC: <span id="lblInv2Dc" class="text-cyan-200">26.6 kW</span></span>
+          <span>I_BT: <span id="lblInv2Current" class="text-slate-200">39.6 A</span></span>
+          <span>η: <span class="text-emerald-400">98.2%</span></span>
+        </div>
+      </div>
+
+      <!-- Potência MT Entregue (Verde Esmeralda) -->
+      <div class="bg-slate-900 border border-emerald-500/30 rounded-xl p-4 shadow-md">
+        <div class="flex items-center justify-between">
+          <span class="text-xs font-bold uppercase tracking-wider text-emerald-300 flex items-center gap-1.5">
+            ⚡ Potência MT Entregue
+          </span>
+          <span class="px-1.5 py-0.5 text-[10px] font-mono rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+            13.8 kV · 75 kVA
+          </span>
+        </div>
+        <div class="mt-2 flex items-baseline gap-2">
+          <span id="kpiMtPower" class="text-3xl font-mono font-extrabold text-emerald-400">51.4</span>
+          <span class="text-sm font-semibold text-slate-400">kW</span>
+          <span id="lblMtKva" class="text-xs font-mono text-slate-400 ml-auto">(52.4 kVA)</span>
+        </div>
+        <div class="mt-2 pt-2 border-t border-slate-800 text-xs text-slate-400 flex justify-between font-mono">
+          <span>Corrente MT: <strong id="lblMtCurrent" class="text-emerald-300">2.19 A</strong></span>
+          <span>Perdas Trafo: <span id="lblTrafoLoss" class="text-slate-300">0.78 kW</span></span>
+        </div>
+      </div>
+
+      <!-- Perda por Desalinhamento -->
+      <div id="cardLoss" class="bg-slate-900 border border-slate-800 rounded-xl p-4 shadow-md">
+        <span class="text-xs font-bold uppercase tracking-wider text-slate-400 block">Perda por Desalinhamento</span>
+        <div class="mt-2 flex items-baseline justify-between">
+          <div class="flex items-baseline gap-1.5">
+            <span id="kpiLossKw" class="text-3xl font-mono font-extrabold text-slate-300">0.0</span>
+            <span class="text-sm font-semibold text-slate-400">kW</span>
+          </div>
+          <span id="kpiLossPct" class="text-sm font-mono font-bold px-2 py-0.5 rounded bg-slate-800 text-slate-400">0.0%</span>
+        </div>
+        <div class="mt-2 pt-2 border-t border-slate-800 text-xs text-slate-400 flex justify-between font-mono">
+          <span>Ideal: <strong id="lblIdealPower" class="text-slate-200">51.4 kW</strong></span>
+          <span>Delta Real</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ==================== ABA 1: DASHBOARD E GERAÇÃO ==================== -->
+    <div id="tabContentDashboard" class="space-y-5">
+      <!-- TRACKER STATUS & FAILURE SIMULATION -->
+      <div class="bg-slate-900 border border-slate-800 rounded-xl p-4 shadow-md">
+        <div class="flex items-center justify-between pb-2 mb-3 border-b border-slate-800">
+          <h2 class="text-xs font-bold uppercase tracking-wider text-slate-200">
+            Sistema de Tracking (Rastreadores de Eixo Único Leste-Oeste -60° a +60°)
+          </h2>
+          <span class="text-xs text-slate-400">Tracker 1: Strings 1-5 | Tracker 2: Strings 6-10</span>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <!-- Tracker 1 -->
+          <div id="tracker1Card" class="p-4 rounded-xl border bg-slate-950/60 border-slate-800 transition-all">
+            <div class="flex items-center justify-between mb-3">
+              <div>
+                <h3 class="text-sm font-bold text-white flex items-center gap-1.5">
+                  <span>Tracker 1</span>
+                  <span id="t1Badge" class="text-[10px] px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300 font-semibold border border-emerald-500/30">
+                    RASTREANDO
+                  </span>
+                </h3>
+                <p class="text-[11px] text-slate-400">Strings 1 a 5 (50 módulos · 27.5 kWp)</p>
+              </div>
+              <div id="t1AngleTag" class="text-sm font-mono font-bold text-amber-400 bg-slate-900 px-2 py-1 rounded border border-slate-800">
+                0.0°
+              </div>
+            </div>
+
+            <!-- Rotating Visualizer -->
+            <div class="h-24 bg-slate-900 rounded-lg p-2 flex items-center justify-center relative border border-slate-800 mb-3 overflow-hidden">
+              <div class="absolute bottom-2 inset-x-4 h-0.5 bg-slate-800 flex justify-between text-[8px] font-mono text-slate-500">
+                <span>-60° (Leste)</span>
+                <span>N-S</span>
+                <span>+60° (Oeste)</span>
+              </div>
+              <div class="absolute bottom-2.5 left-1/2 -translate-x-1/2 w-2.5 h-10 bg-slate-700 rounded-t"></div>
+              <div id="t1VisualBar" class="w-44 h-3 bg-gradient-to-r from-amber-600 via-yellow-400 to-amber-600 rounded transition-transform duration-200 border border-amber-400/50 flex justify-between px-1">
+                <div class="w-7 h-2 bg-amber-950 my-auto rounded-[1px]"></div>
+                <div class="w-7 h-2 bg-amber-950 my-auto rounded-[1px]"></div>
+                <div class="w-7 h-2 bg-amber-950 my-auto rounded-[1px]"></div>
+                <div class="w-7 h-2 bg-amber-950 my-auto rounded-[1px]"></div>
+                <div class="w-7 h-2 bg-amber-950 my-auto rounded-[1px]"></div>
+              </div>
+            </div>
+
+            <!-- Sub values -->
+            <div class="grid grid-cols-3 gap-2 text-center text-xs mb-3 font-mono">
+              <div class="bg-slate-900 p-1.5 rounded border border-slate-800">
+                <span class="text-[9px] text-slate-400 block">POA T1</span>
+                <strong id="lblT1Poa" class="text-white">1000</strong> W/m²
+              </div>
+              <div class="bg-slate-900 p-1.5 rounded border border-slate-800">
+                <span class="text-[9px] text-slate-400 block">Ideal</span>
+                <strong id="lblT1Ideal" class="text-sky-400">0°</strong>
+              </div>
+              <div class="bg-slate-900 p-1.5 rounded border border-slate-800">
+                <span class="text-[9px] text-slate-400 block">Perda Mec.</span>
+                <strong id="lblT1Loss" class="text-slate-300">0.0%</strong>
+              </div>
+            </div>
+
+            <!-- Tracker 1 Failure Button & Angle Slider -->
+            <div class="pt-2 border-t border-slate-800 space-y-2">
+              <button id="btnToggleFailure" onclick="toggleTracker1Failure()" class="w-full py-2 px-3 rounded-lg text-xs font-bold bg-amber-600 hover:bg-amber-500 text-white transition flex items-center justify-center gap-1.5">
+                <span>⚠ Simular Falha no Tracker 1 (Travar Ângulo)</span>
+              </button>
+              <div class="bg-slate-900 p-2 rounded-lg border border-slate-800 flex items-center justify-between text-xs">
+                <span class="text-slate-400">Ângulo Travado:</span>
+                <div class="flex items-center gap-2">
+                  <input id="stuckAngleSlider" type="range" min="-60" max="60" step="5" value="-45" oninput="changeStuckAngle(this.value)" class="w-24 h-1.5 bg-slate-800 rounded accent-amber-500" />
+                  <span id="lblStuckAngle" class="font-mono font-bold text-amber-400">-45°</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Tracker 2 -->
+          <div class="p-4 rounded-xl border bg-slate-950/60 border-slate-800 flex flex-col justify-between">
+            <div>
+              <div class="flex items-center justify-between mb-3">
+                <div>
+                  <h3 class="text-sm font-bold text-white flex items-center gap-1.5">
+                    <span>Tracker 2</span>
+                    <span class="text-[10px] px-1.5 py-0.5 rounded bg-cyan-500/20 text-cyan-300 font-semibold border border-cyan-500/30">
+                      100% OPERACIONAL
+                    </span>
+                  </h3>
+                  <p class="text-[11px] text-slate-400">Strings 6 a 10 (50 módulos · 27.5 kWp)</p>
+                </div>
+                <div id="t2AngleTag" class="text-sm font-mono font-bold text-cyan-400 bg-slate-900 px-2 py-1 rounded border border-slate-800">
+                  0.0°
+                </div>
+              </div>
+
+              <!-- Rotating Visualizer -->
+              <div class="h-24 bg-slate-900 rounded-lg p-2 flex items-center justify-center relative border border-slate-800 mb-3 overflow-hidden">
+                <div class="absolute bottom-2 inset-x-4 h-0.5 bg-slate-800 flex justify-between text-[8px] font-mono text-slate-500">
+                  <span>-60° (Leste)</span>
+                  <span>N-S</span>
+                  <span>+60° (Oeste)</span>
+                </div>
+                <div class="absolute bottom-2.5 left-1/2 -translate-x-1/2 w-2.5 h-10 bg-slate-700 rounded-t"></div>
+                <div id="t2VisualBar" class="w-44 h-3 bg-gradient-to-r from-cyan-600 via-teal-400 to-cyan-600 rounded transition-transform duration-200 border border-cyan-400/50 flex justify-between px-1">
+                  <div class="w-7 h-2 bg-cyan-950 my-auto rounded-[1px]"></div>
+                  <div class="w-7 h-2 bg-cyan-950 my-auto rounded-[1px]"></div>
+                  <div class="w-7 h-2 bg-cyan-950 my-auto rounded-[1px]"></div>
+                  <div class="w-7 h-2 bg-cyan-950 my-auto rounded-[1px]"></div>
+                  <div class="w-7 h-2 bg-cyan-950 my-auto rounded-[1px]"></div>
+                </div>
+              </div>
+
+              <div class="grid grid-cols-3 gap-2 text-center text-xs mb-3 font-mono">
+                <div class="bg-slate-900 p-1.5 rounded border border-slate-800">
+                  <span class="text-[9px] text-slate-400 block">POA T2</span>
+                  <strong id="lblT2Poa" class="text-white">1000</strong> W/m²
+                </div>
+                <div class="bg-slate-900 p-1.5 rounded border border-slate-800">
+                  <span class="text-[9px] text-slate-400 block">Rastreamento</span>
+                  <strong class="text-cyan-400">Ativo</strong>
+                </div>
+                <div class="bg-slate-900 p-1.5 rounded border border-slate-800">
+                  <span class="text-[9px] text-slate-400 block">Perda Mec.</span>
+                  <strong class="text-emerald-400">0.0%</strong>
+                </div>
+              </div>
+            </div>
+
+            <div class="p-2.5 rounded-lg bg-cyan-950/20 border border-cyan-800/40 text-xs text-slate-300">
+              ✓ O Tracker 2 segue a trajetória astronômica exata do Sol (-60° a +60°), servindo de referência nominal.
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- DAILY GENERATION CHART (CHART.JS) WITH INDIVIDUAL INVERTER CURVES -->
+      <div class="bg-slate-900 border border-slate-800 rounded-xl p-4 shadow-md">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between pb-2 mb-3 border-b border-slate-800 gap-2">
+          <div>
+            <h2 class="text-xs font-bold uppercase tracking-wider text-slate-200">
+              Curva de Geração Diária (06:00 às 18:00) · Chart.js
+            </h2>
+            <p class="text-[11px] text-slate-400">
+              Contribuição individual dos Inversores 1 (Laranja) e 2 (Azul) e Curva Total Injetada na MT
+            </p>
+          </div>
+          <div class="flex items-center gap-3 text-xs font-mono">
+            <span class="flex items-center gap-1.5 text-amber-400 font-bold">
+              <span class="w-3 h-1 bg-amber-500 rounded"></span> Inversor 1
+            </span>
+            <span class="flex items-center gap-1.5 text-cyan-400 font-bold">
+              <span class="w-3 h-1 bg-cyan-500 rounded"></span> Inversor 2
+            </span>
+            <span class="flex items-center gap-1.5 text-emerald-400 font-bold">
+              <span class="w-3 h-1 bg-emerald-500 rounded"></span> Total MT
+            </span>
+            <span class="flex items-center gap-1.5 text-slate-400">
+              <span class="w-3 h-0.5 bg-slate-400 border-dashed"></span> Ideal
+            </span>
+          </div>
+        </div>
+
+        <div class="h-72 w-full">
+          <canvas id="dailyChartCanvas"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <!-- ==================== ABA 2: DIAGRAMA UNIFILAR INTERATIVO (SLD) ==================== -->
+    <div id="tabContentUnifilar" class="space-y-5 hidden">
+      
+      <!-- ELECTRICAL SAFETY STANDARD BANNER (NR-10 / IEC / NBR 14039) -->
+      <div class="bg-slate-900 border border-slate-800 rounded-xl p-4 shadow-md space-y-3">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-800">
+          <div>
+            <h2 class="text-sm font-bold uppercase tracking-wider text-slate-200 flex items-center gap-2">
+              <span>⚡</span> Padrão de Segurança Elétrica (Subestações NBR 14039 / NR-10 / IEC 60947)
+            </h2>
+            <p class="text-xs text-slate-400 mt-0.5">
+              Convenção internacional de sinalização em comandos de manobra de subestação:
+            </p>
+          </div>
+
+          <div class="flex items-center gap-2">
+            <button onclick="energizeAll()" class="px-2.5 py-1 rounded-lg bg-red-950/40 hover:bg-red-900/60 text-red-300 border border-red-500/40 text-xs font-semibold">
+              ● Fechar Todas as Chaves (NF)
+            </button>
+            <button onclick="deenergizeAll()" class="px-2.5 py-1 rounded-lg bg-emerald-950/40 hover:bg-emerald-900/60 text-emerald-300 border border-emerald-500/40 text-xs font-semibold">
+              ○ Abrir Todas as Chaves (NA)
+            </button>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs font-mono">
+          <!-- VERMELHO -->
+          <div class="p-3 rounded-lg bg-red-950/30 border border-red-500/50 flex items-start gap-3">
+            <span class="w-4 h-4 rounded-full bg-red-500 flex-shrink-0 mt-0.5 shadow-sm shadow-red-500/50"></span>
+            <div>
+              <strong class="text-red-300 text-sm block">COR VERMELHA = CHAVE FECHADA (N/F) / ENERGIZADO</strong>
+              <p class="text-slate-300 text-[11px] mt-0.5">
+                Os contatos elétricos estão conectados. Há passagem de corrente e presença de alta/baixa tensão ativa. <strong>Atenção: circuito sob carga, perigo de choque!</strong>
+              </p>
+            </div>
+          </div>
+
+          <!-- VERDE -->
+          <div class="p-3 rounded-lg bg-emerald-950/30 border border-emerald-500/50 flex items-start gap-3">
+            <span class="w-4 h-4 rounded-full bg-emerald-400 flex-shrink-0 mt-0.5 shadow-sm shadow-emerald-400/50"></span>
+            <div>
+              <strong class="text-emerald-300 text-sm block">COR VERDE = CHAVE ABERTA (N/A) / DESENERGIZADO</strong>
+              <p class="text-slate-300 text-[11px] mt-0.5">
+                Os contatos elétricos estão separados (seccionados). O fluxo de potência é interrompido e a tensão cai para 0V. <strong>Seguro para intervenção e manutenção!</strong>
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- MAIN INTERACTIVE SLD BOARD -->
+      <div class="bg-slate-900 border border-slate-800 rounded-xl p-4 shadow-md space-y-4">
+        <div class="flex items-center justify-between pb-2 border-b border-slate-800">
+          <div>
+            <h2 class="text-xs font-bold uppercase tracking-wider text-slate-200">
+              Comutação Interativa de Chaves (Clique nos botões para manobrar)
+            </h2>
+            <p class="text-[11px] text-slate-400">Ao abrir qualquer chave, o circuito jusante é desenergizado e o medidor reflete a interrupção.</p>
+          </div>
+          <button id="btnRelayTripSLD" onclick="toggleRelayTrip()" class="px-2.5 py-1 rounded bg-slate-800 hover:bg-red-900/40 text-slate-300 border border-slate-700 text-xs font-medium">
+            Simular Trip Relé 50/51
+          </button>
+        </div>
+
+        <div class="overflow-x-auto pb-2">
+          <div class="min-w-[980px] bg-slate-950/90 rounded-xl p-4 border border-slate-800 space-y-4 font-mono text-xs">
+            
+            <!-- STAGE LABELS -->
+            <div class="grid grid-cols-5 gap-3 text-center text-[10px] font-bold">
+              <div class="bg-slate-900 border border-slate-800 text-amber-300 py-1 rounded">1. CC (55 kWp)</div>
+              <div class="bg-slate-900 border border-slate-800 text-cyan-300 py-1 rounded">2. INVERSORES & QGBT</div>
+              <div class="bg-slate-900 border border-slate-800 text-amber-400 py-1 rounded">3. TRAFO 75kVA</div>
+              <div class="bg-slate-900 border border-slate-800 text-red-400 py-1 rounded">4. CABINE MT & 50/51</div>
+              <div class="bg-slate-900 border border-slate-800 text-emerald-400 py-1 rounded">5. MEDIÇÃO & REDE MT</div>
+            </div>
+
+            <!-- EQUIPMENT BLOCKS -->
+            <div class="grid grid-cols-5 gap-4 items-stretch">
+              
+              <!-- COL 1: PV STRINGS & DC SWITCHES -->
+              <div class="space-y-4 flex flex-col justify-between">
+                <!-- String 1-5 -->
+                <div id="sldBoxDc1" class="p-3 rounded-xl border bg-red-950/15 border-red-500/40">
+                  <div class="flex justify-between font-bold text-amber-400 mb-1">
+                    <span>Strings 01 a 05</span>
+                    <span class="text-[10px] text-slate-400">27.5 kWp</span>
+                  </div>
+                  <div class="text-[11px] text-slate-300">P_cc: <strong id="sldPcc1" class="text-white">26.6 kW</strong></div>
+                  
+                  <div class="mt-2.5 pt-2 border-t border-slate-800 flex items-center justify-between">
+                    <span class="text-[10px] text-slate-400">Seccionadora CC 1:</span>
+                    <button id="btnDc1" onclick="toggleDc1()" class="px-2 py-0.5 rounded text-[10px] font-bold bg-red-600 hover:bg-red-500 text-white">
+                      NF (FECHADA)
+                    </button>
+                  </div>
+                  <div id="lblStatusDc1" class="mt-1 text-right text-[9px] text-red-400 font-bold">● ENERGIZADO</div>
+                </div>
+
+                <!-- String 6-10 -->
+                <div id="sldBoxDc2" class="p-3 rounded-xl border bg-red-950/15 border-red-500/40">
+                  <div class="flex justify-between font-bold text-cyan-400 mb-1">
+                    <span>Strings 06 a 10</span>
+                    <span class="text-[10px] text-slate-400">27.5 kWp</span>
+                  </div>
+                  <div class="text-[11px] text-slate-300">P_cc: <strong id="sldPcc2" class="text-white">26.6 kW</strong></div>
+
+                  <div class="mt-2.5 pt-2 border-t border-slate-800 flex items-center justify-between">
+                    <span class="text-[10px] text-slate-400">Seccionadora CC 2:</span>
+                    <button id="btnDc2" onclick="toggleDc2()" class="px-2 py-0.5 rounded text-[10px] font-bold bg-red-600 hover:bg-red-500 text-white">
+                      NF (FECHADA)
+                    </button>
+                  </div>
+                  <div id="lblStatusDc2" class="mt-1 text-right text-[9px] text-red-400 font-bold">● ENERGIZADO</div>
+                </div>
+              </div>
+
+              <!-- COL 2: INVERTERS & QGBT BREAKERS -->
+              <div class="space-y-4 flex flex-col justify-between">
+                <!-- Inverter 1 & QGBT 1 -->
+                <div id="sldBoxInv1" class="p-3 rounded-xl border bg-red-950/15 border-red-500/40">
+                  <div class="flex justify-between font-bold text-amber-300 mb-1">
+                    <span>Inversor 01 (30kW)</span>
+                    <span class="text-[9px] px-1 rounded bg-amber-500/20 text-amber-300">380V</span>
+                  </div>
+                  <div class="text-[11px] text-slate-300">Saída: <strong id="sldPca1" class="text-amber-400">26.1 kW</strong></div>
+
+                  <div class="mt-2.5 pt-2 border-t border-slate-800 flex items-center justify-between">
+                    <span class="text-[10px] text-slate-400">Disjuntor QGBT 1:</span>
+                    <button id="btnQgbt1" onclick="toggleQgbt1()" class="px-2 py-0.5 rounded text-[10px] font-bold bg-red-600 hover:bg-red-500 text-white">
+                      NF (FECHADO)
+                    </button>
+                  </div>
+                  <div id="lblStatusQgbt1" class="mt-1 text-right text-[9px] text-red-400 font-bold">● ALIMENTANDO BT</div>
+                </div>
+
+                <!-- Inverter 2 & QGBT 2 -->
+                <div id="sldBoxInv2" class="p-3 rounded-xl border bg-red-950/15 border-red-500/40">
+                  <div class="flex justify-between font-bold text-cyan-300 mb-1">
+                    <span>Inversor 02 (30kW)</span>
+                    <span class="text-[9px] px-1 rounded bg-cyan-500/20 text-cyan-300">380V</span>
+                  </div>
+                  <div class="text-[11px] text-slate-300">Saída: <strong id="sldPca2" class="text-cyan-400">26.1 kW</strong></div>
+
+                  <div class="mt-2.5 pt-2 border-t border-slate-800 flex items-center justify-between">
+                    <span class="text-[10px] text-slate-400">Disjuntor QGBT 2:</span>
+                    <button id="btnQgbt2" onclick="toggleQgbt2()" class="px-2 py-0.5 rounded text-[10px] font-bold bg-red-600 hover:bg-red-500 text-white">
+                      NF (FECHADO)
+                    </button>
+                  </div>
+                  <div id="lblStatusQgbt2" class="mt-1 text-right text-[9px] text-red-400 font-bold">● ALIMENTANDO BT</div>
+                </div>
+              </div>
+
+              <!-- COL 3: TRAFO 75kVA -->
+              <div class="space-y-4 flex flex-col justify-between">
+                <div id="sldBoxTrafo" class="p-3.5 rounded-xl border bg-red-950/15 border-red-500/40">
+                  <div class="flex justify-between font-bold text-amber-300 mb-1">
+                    <span>Trafo Elevador</span>
+                    <span class="text-[10px] bg-amber-500/20 text-amber-300 px-1 rounded">75 kVA</span>
+                  </div>
+
+                  <div class="my-2 py-2 bg-slate-950/80 rounded-lg flex items-center justify-center gap-2 border border-slate-800">
+                    <span class="w-7 h-7 rounded-full border border-indigo-400 flex items-center justify-center text-[10px] text-indigo-300 font-bold">Δ 380V</span>
+                    <span class="text-slate-500 text-[10px]">Dyn11</span>
+                    <span class="w-7 h-7 rounded-full border border-amber-400 flex items-center justify-center text-[10px] text-amber-300 font-bold">Y 13.8kV</span>
+                  </div>
+
+                  <div class="pt-2 border-t border-slate-800 flex items-center justify-between">
+                    <span class="text-[10px] text-slate-400">Seccionadora BT Trafo:</span>
+                    <button id="btnTrafoBt" onclick="toggleTrafoBt()" class="px-2 py-0.5 rounded text-[10px] font-bold bg-red-600 hover:bg-red-500 text-white">
+                      NF (FECHADA)
+                    </button>
+                  </div>
+
+                  <div class="mt-2 text-[11px] space-y-0.5">
+                    <div class="flex justify-between text-slate-400"><span>Entrada BT:</span> <span id="sldTrafoIn" class="text-white">52.2 kW</span></div>
+                    <div class="flex justify-between text-slate-400"><span>Saída MT:</span> <strong id="sldTrafoOut" class="text-amber-400">51.4 kW</strong></div>
+                  </div>
+                  <div id="lblStatusTrafo" class="mt-1 text-right text-[9px] text-red-400 font-bold">● PRIMÁRIO & SECUNDÁRIO VIVOS</div>
+                </div>
+
+                <div class="p-2 rounded bg-slate-900 border border-slate-800 text-center text-[10px] text-slate-400">
+                  Cabo MT: 3x (1x50mm²) XLPE 15kV
+                </div>
+              </div>
+
+              <!-- COL 4: CABINE PRIMÁRIA & 50/51 -->
+              <div class="space-y-4 flex flex-col justify-between">
+                <div id="sldBoxCabine" class="p-3.5 rounded-xl border bg-red-950/15 border-red-500/40">
+                  <div class="flex justify-between font-bold text-red-300 mb-1">
+                    <span>Cabine Primária MT</span>
+                    <span class="text-[10px] px-1 rounded bg-red-500/20 text-red-300">13.8 kV</span>
+                  </div>
+
+                  <div class="my-2 p-2 rounded bg-slate-950/70 border border-slate-800 space-y-1">
+                    <div class="flex justify-between items-center">
+                      <span class="text-[10px] text-slate-400">Seccionadora MT:</span>
+                      <button id="btnCabineSec" onclick="toggleCabineSec()" class="px-2 py-0.5 rounded text-[10px] font-bold bg-red-600 hover:bg-red-500 text-white">
+                        NF (FECHADA)
+                      </button>
+                    </div>
+                    <div class="flex justify-between pt-1 border-t border-slate-800">
+                      <span class="text-[10px] text-slate-400">Relé 50/51:</span>
+                      <span id="sldRelayStatus" class="text-[10px] font-bold text-emerald-400">NORMAL (ARMADO)</span>
+                    </div>
+                  </div>
+
+                  <div class="pt-2 border-t border-slate-800 flex items-center justify-between">
+                    <div>
+                      <span class="text-[10px] text-slate-400 block">Disjuntor MT 52:</span>
+                      <span class="text-[9px] text-slate-400">Vácuo 630A</span>
+                    </div>
+                    <button id="btnBreakerMT" onclick="toggleBreakerMT()" class="px-2 py-1 rounded text-xs font-bold bg-red-600 hover:bg-red-500 text-white">
+                      NF (FECHADO)
+                    </button>
+                  </div>
+                  <div id="lblStatusCabine" class="mt-2 text-right text-[9px] text-red-400 font-bold">● CONDUTORES MT ENERGIZADOS</div>
+                </div>
+
+                <div class="p-2 rounded bg-slate-900 border border-slate-800 text-center text-[10px] text-slate-400">
+                  Transformador de Corrente (TC): 15/5A
+                </div>
+              </div>
+
+              <!-- COL 5: CONCESSIONÁRIA & MEDIDOR -->
+              <div class="space-y-4 flex flex-col justify-between">
+                <div id="sldBoxGrid" class="p-3.5 rounded-xl border bg-red-950/15 border-red-500/40">
+                  <div class="flex justify-between font-bold text-emerald-300 mb-1">
+                    <span>Medição & Entrega</span>
+                    <span class="text-[10px] px-1 rounded bg-emerald-500/20 text-emerald-300">13.8 kV</span>
+                  </div>
+
+                  <div class="my-2 p-2 rounded bg-slate-950 border border-slate-800 space-y-1">
+                    <div class="flex justify-between items-center">
+                      <span class="text-[10px] text-slate-400">Seccionadora Entrega:</span>
+                      <button id="btnUtilSec" onclick="toggleUtilSec()" class="px-2 py-0.5 rounded text-[10px] font-bold bg-red-600 hover:bg-red-500 text-white">
+                        NF (FECHADA)
+                      </button>
+                    </div>
+
+                    <div class="p-1.5 rounded bg-slate-900 border border-slate-800 text-amber-400 flex justify-between">
+                      <span>Medidor MT:</span>
+                      <strong id="sldMeterPower" class="text-white">51.4 kW</strong>
+                    </div>
+                  </div>
+
+                  <div class="pt-2 border-t border-slate-800 flex items-center justify-between">
+                    <div>
+                      <span class="text-[10px] text-slate-400 block">Religador MT:</span>
+                      <span class="text-[9px] text-slate-400">Rede Pública</span>
+                    </div>
+                    <button id="btnRecloser" onclick="toggleRecloser()" class="px-2 py-1 rounded text-xs font-bold bg-red-600 hover:bg-red-500 text-white">
+                      NF (LIGADO)
+                    </button>
+                  </div>
+                  <div id="lblStatusGrid" class="mt-2 text-right text-[9px] text-red-400 font-bold">● INJETANDO NA REDE</div>
+                </div>
+
+                <div id="sldTagGrid" class="p-3 rounded-xl border text-center font-bold bg-red-950/30 border-red-500/50 text-red-300">
+                  REDE CONCESSIONÁRIA ENERGIZADA
+                </div>
+              </div>
+
+            </div>
+
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- FOOTER -->
+  <footer class="bg-slate-900/80 border-t border-slate-800 py-4 mt-8 text-center text-xs text-slate-400 font-mono">
+    Simulador de Usina Fotovoltaica de Média Tensão · 55 kWp · NBR 5410 & NBR 14039 · Padrão de Cores NR-10: Vermelho (NF/Energizado) e Verde (NA/Desenergizado)
+  </footer>
+
+  <!-- ==================== JAVASCRIPT SIMULATION LOGIC ==================== -->
+  <script>
+    // System Constant Specifications
+    const TOTAL_MODULES = 100;
+    const MODULE_WP = 550; // Wp
+    const STRINGS_COUNT = 10;
+    const MODULES_PER_STRING = 10;
+    const TOTAL_KWP = (TOTAL_MODULES * MODULE_WP) / 1000; // 55 kWp
+    const TRAFO_KVA = 75;
+    const VOLTAGE_BT = 380; // V
+    const VOLTAGE_MT = 13800; // V
+    const POWER_FACTOR = 0.98;
+
+    // Simulation State
+    let currentTime = 12.0; // 06:00 to 18:00
+    let isPlaying = false;
+    let playSpeed = 1;
+    let animInterval = null;
+
+    let tracker1Stuck = false;
+    let tracker1StuckAngle = -45;
+
+    // Switchgear States (true = Fechado / NF / Energizado / Vermelho, false = Aberto / NA / Desenergizado / Verde)
+    let switches = {
+      dc1: true,
+      dc2: true,
+      qgbt1: true,
+      qgbt2: true,
+      trafoBt: true,
+      cabineSec: true,
+      breakerMT: true,
+      relayTripped: false,
+      utilSec: true,
+      recloser: true,
+    };
+
+    let activeTab = 'dashboard';
+    let chartInstance = null;
+
+    // Solar Physics Math
+    function getSolarPosition(time) {
+      if (time < 6 || time > 18) return { sunAngle: 0, elevation: 0, ghi: 0 };
+      const normalized = (time - 6) / 12; // 0 at 6h, 0.5 at 12h, 1 at 18h
+      const sunAngle = (normalized - 0.5) * 180; // -90° to +90°
+      const elevation = Math.max(0, 75 * Math.sin(normalized * Math.PI));
+      const ghi = Math.max(0, 1000 * Math.sin(normalized * Math.PI));
+      return { sunAngle, elevation, ghi };
+    }
+
+    function calculatePoa(ghi, sunAngle, trackerAngle) {
+      if (ghi <= 0) return 0;
+      const misalignment = Math.abs(sunAngle - trackerAngle);
+      const cosTheta = Math.max(0, Math.cos((misalignment * Math.PI) / 180));
+      return ghi * (0.15 + 0.85 * cosTheta);
+    }
+
+    function computeMetrics(time) {
+      const solar = getSolarPosition(time);
+
+      // Tracker angles
+      const idealAngle = Math.max(-60, Math.min(60, solar.sunAngle));
+      const t1Angle = tracker1Stuck ? tracker1StuckAngle : idealAngle;
+      const t2Angle = idealAngle;
+
+      const t1Poa = calculatePoa(solar.ghi, solar.sunAngle, t1Angle);
+      const t2Poa = calculatePoa(solar.ghi, solar.sunAngle, t2Angle);
+
+      // Raw DC Generation (27.5 kWp each field)
+      const pNominalPerField = TOTAL_KWP / 2; // 27.5 kW
+      const rawDc1 = pNominalPerField * (t1Poa / 1000) * 0.97;
+      const rawDc2 = pNominalPerField * (t2Poa / 1000) * 0.97;
+
+      // Electrical Continuity Chain
+      const dc1Active = switches.dc1;
+      const dc2Active = switches.dc2;
+
+      const dc1ToInv = dc1Active ? rawDc1 : 0;
+      const dc2ToInv = dc2Active ? rawDc2 : 0;
+
+      // Inverters (30 kW limit, 98.2% eff)
+      const inv1Ac = Math.min(30, dc1ToInv * 0.982);
+      const inv2Ac = Math.min(30, dc2ToInv * 0.982);
+
+      const qgbt1Active = dc1Active && switches.qgbt1;
+      const qgbt2Active = dc2Active && switches.qgbt2;
+
+      const btBusPower = (qgbt1Active ? inv1Ac : 0) + (qgbt2Active ? inv2Ac : 0);
+
+      // Trafo BT -> MT
+      const trafoActive = (qgbt1Active || qgbt2Active) && switches.trafoBt;
+      const trafoLoss = trafoActive && btBusPower > 0 ? 0.35 + btBusPower * 0.008 : 0;
+      const trafoMtOut = trafoActive ? Math.max(0, btBusPower - trafoLoss) : 0;
+
+      // Cabine MT & Breaker 52 / Relay 50/51
+      const cabineActive = trafoActive && switches.cabineSec && switches.breakerMT && !switches.relayTripped;
+
+      // Concessionária & Recloser
+      const gridActive = cabineActive && switches.utilSec && switches.recloser;
+      const deliveredMtKw = gridActive ? trafoMtOut : 0;
+      const deliveredMtKva = deliveredMtKw / POWER_FACTOR;
+      const currentMtA = deliveredMtKva > 0 ? (deliveredMtKva * 1000) / (Math.sqrt(3) * VOLTAGE_MT) : 0;
+
+      // Reference Ideal (100% Tracking & Full Continuity)
+      const idealPoa = calculatePoa(solar.ghi, solar.sunAngle, idealAngle);
+      const idealDc = TOTAL_KWP * (idealPoa / 1000) * 0.97;
+      const idealAc = idealDc * 0.982;
+      const idealTrafoLoss = idealAc > 0 ? 0.35 + idealAc * 0.008 : 0;
+      const idealDelivered = Math.max(0, idealAc - idealTrafoLoss);
+
+      const misalignmentLoss = Math.max(0, idealDelivered - deliveredMtKw);
+      const misalignmentPct = idealDelivered > 0.5 ? (misalignmentLoss / idealDelivered) * 100 : 0;
+
+      return {
+        solar,
+        idealAngle,
+        t1Angle,
+        t2Angle,
+        t1Poa,
+        t2Poa,
+        rawDc1,
+        rawDc2,
+        inv1Ac,
+        inv2Ac,
+        deliveredMtKw,
+        deliveredMtKva,
+        currentMtA,
+        trafoLoss,
+        idealDelivered,
+        misalignmentLoss,
+        misalignmentPct,
+        energization: {
+          dc1: dc1Active,
+          dc2: dc2Active,
+          qgbt1: qgbt1Active,
+          qgbt2: qgbt2Active,
+          trafo: trafoActive,
+          cabine: cabineActive,
+          grid: gridActive,
+        }
+      };
+    }
+
+    // UI Updates
+    function updateUI() {
+      const m = computeMetrics(currentTime);
+
+      // Time & Solar labels
+      const hours = Math.floor(currentTime);
+      const mins = Math.floor((currentTime - hours) * 60);
+      const timeStr = `${String(hours).padStart(2, '0')}:${String(mins).padStart(2, '0')}`;
+      document.getElementById('lblTimeDisplay').innerText = timeStr;
+      document.getElementById('timeSlider').value = currentTime;
+
+      document.getElementById('lblSunAngle').innerText = (m.solar.sunAngle > 0 ? '+' : '') + m.solar.sunAngle.toFixed(1) + '°';
+      document.getElementById('lblSunElevation').innerText = m.solar.elevation.toFixed(1) + '°';
+      document.getElementById('lblGhi').innerText = Math.round(m.solar.ghi);
+
+      // Status Badge
+      const isAlarm = tracker1Stuck || !switches.breakerMT || !switches.recloser || switches.relayTripped || !m.energization.grid;
+      const badge = document.getElementById('statusBadge');
+      const badgeText = document.getElementById('statusBadgeText');
+      if (isAlarm) {
+        badge.className = 'flex items-center gap-2 px-3 py-1.5 rounded-lg border text-xs font-medium bg-amber-950/40 border-amber-600/50 text-amber-300';
+        badgeText.innerText = switches.relayTripped ? 'Alerta: Relé 50/51 Atuado (Trip)' : !m.energization.grid ? 'Usina Desconectada / Interrompida' : 'Alerta: Tracker 1 Travado';
+      } else {
+        badge.className = 'flex items-center gap-2 px-3 py-1.5 rounded-lg border text-xs font-medium bg-emerald-950/40 border-emerald-600/50 text-emerald-300';
+        badgeText.innerText = 'Operação Normal em Rede MT';
+      }
+
+      // Core KPIs
+      document.getElementById('kpiInv1').innerText = (m.energization.dc1 ? m.inv1Ac : 0).toFixed(1);
+      document.getElementById('lblInv1Dc').innerText = (m.energization.dc1 ? m.rawDc1 : 0).toFixed(1) + ' kW';
+      document.getElementById('lblInv1Current').innerText = (m.energization.dc1 && m.inv1Ac > 0 ? (m.inv1Ac * 1000) / (Math.sqrt(3) * 380) : 0).toFixed(1) + ' A';
+
+      document.getElementById('kpiInv2').innerText = (m.energization.dc2 ? m.inv2Ac : 0).toFixed(1);
+      document.getElementById('lblInv2Dc').innerText = (m.energization.dc2 ? m.rawDc2 : 0).toFixed(1) + ' kW';
+      document.getElementById('lblInv2Current').innerText = (m.energization.dc2 && m.inv2Ac > 0 ? (m.inv2Ac * 1000) / (Math.sqrt(3) * 380) : 0).toFixed(1) + ' A';
+
+      document.getElementById('kpiMtPower').innerText = m.deliveredMtKw.toFixed(1);
+      document.getElementById('lblMtKva').innerText = '(' + m.deliveredMtKva.toFixed(1) + ' kVA)';
+      document.getElementById('lblMtCurrent').innerText = m.currentMtA.toFixed(2) + ' A';
+      document.getElementById('lblTrafoLoss').innerText = m.trafoLoss.toFixed(2) + ' kW';
+
+      document.getElementById('kpiLossKw').innerText = m.misalignmentLoss.toFixed(1);
+      document.getElementById('kpiLossPct').innerText = '-' + m.misalignmentPct.toFixed(1) + '%';
+      document.getElementById('lblIdealPower').innerText = m.idealDelivered.toFixed(1) + ' kW';
+
+      // Tracker 1 & 2 Panels
+      document.getElementById('t1AngleTag').innerText = (m.t1Angle > 0 ? '+' : '') + m.t1Angle.toFixed(1) + '°';
+      document.getElementById('t1VisualBar').style.transform = `rotate(${m.t1Angle}deg)`;
+      document.getElementById('lblT1Poa').innerText = Math.round(m.t1Poa);
+      document.getElementById('lblT1Ideal').innerText = Math.round(m.idealAngle) + '°';
+      const t1MechLoss = m.idealAngle !== 0 ? Math.abs(m.idealAngle - m.t1Angle) : 0;
+      document.getElementById('lblT1Loss').innerText = ((t1MechLoss / 60) * 100).toFixed(1) + '%';
+
+      document.getElementById('t2AngleTag').innerText = (m.t2Angle > 0 ? '+' : '') + m.t2Angle.toFixed(1) + '°';
+      document.getElementById('t2VisualBar').style.transform = `rotate(${m.t2Angle}deg)`;
+      document.getElementById('lblT2Poa').innerText = Math.round(m.t2Poa);
+
+      // SLD Elements & Colors
+      renderSldElements(m);
+    }
+
+    function renderSldElements(m) {
+      // Helper for switch button styling
+      function setSwitchBtn(id, isClosed, labelClosed, labelOpen) {
+        const btn = document.getElementById(id);
+        if (!btn) return;
+        if (isClosed) {
+          btn.className = 'px-2 py-0.5 rounded text-[10px] font-bold bg-red-600 hover:bg-red-500 text-white';
+          btn.innerText = labelClosed || 'NF (FECHADA)';
+        } else {
+          btn.className = 'px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-600 hover:bg-emerald-500 text-white';
+          btn.innerText = labelOpen || 'NA (ABERTA)';
+        }
+      }
+
+      function setBoxState(boxId, statusLabelId, isEnergized, energizedText, deenergizedText) {
+        const box = document.getElementById(boxId);
+        const label = document.getElementById(statusLabelId);
+        if (!box) return;
+        if (isEnergized) {
+          box.className = 'p-3 rounded-xl border bg-red-950/15 border-red-500/40 transition-all';
+          if (label) {
+            label.className = 'mt-1 text-right text-[9px] text-red-400 font-bold';
+            label.innerText = energizedText || '● ENERGIZADO';
+          }
+        } else {
+          box.className = 'p-3 rounded-xl border bg-emerald-950/15 border-emerald-500/40 transition-all';
+          if (label) {
+            label.className = 'mt-1 text-right text-[9px] text-emerald-400 font-bold';
+            label.innerText = deenergizedText || '○ DESENERGIZADO / SEGURO';
+          }
+        }
+      }
+
+      setSwitchBtn('btnDc1', switches.dc1, 'NF (FECHADA)', 'NA (ABERTA)');
+      setSwitchBtn('btnDc2', switches.dc2, 'NF (FECHADA)', 'NA (ABERTA)');
+      setSwitchBtn('btnQgbt1', switches.qgbt1, 'NF (FECHADO)', 'NA (ABERTO)');
+      setSwitchBtn('btnQgbt2', switches.qgbt2, 'NF (FECHADO)', 'NA (ABERTO)');
+      setSwitchBtn('btnTrafoBt', switches.trafoBt, 'NF (FECHADA)', 'NA (ABERTA)');
+      setSwitchBtn('btnCabineSec', switches.cabineSec, 'NF (FECHADA)', 'NA (ABERTA)');
+      setSwitchBtn('btnBreakerMT', switches.breakerMT && !switches.relayTripped, 'NF (FECHADO)', 'NA (ABERTO)');
+      setSwitchBtn('btnUtilSec', switches.utilSec, 'NF (FECHADA)', 'NA (ABERTA)');
+      setSwitchBtn('btnRecloser', switches.recloser, 'NF (LIGADO)', 'NA (DESLIGADO)');
+
+      setBoxState('sldBoxDc1', 'lblStatusDc1', m.energization.dc1);
+      setBoxState('sldBoxDc2', 'lblStatusDc2', m.energization.dc2);
+      setBoxState('sldBoxInv1', 'lblStatusQgbt1', m.energization.qgbt1, '● ALIMENTANDO BARRAMENTO', '○ ISOLADO / DESENERGIZADO');
+      setBoxState('sldBoxInv2', 'lblStatusQgbt2', m.energization.qgbt2, '● ALIMENTANDO BARRAMENTO', '○ ISOLADO / DESENERGIZADO');
+      setBoxState('sldBoxTrafo', 'lblStatusTrafo', m.energization.trafo, '● PRIMÁRIO & SECUNDÁRIO VIVOS', '○ TRAFO DESENERGIZADO');
+      setBoxState('sldBoxCabine', 'lblStatusCabine', m.energization.cabine, '● CONDUTORES MT ENERGIZADOS', '○ SECCIONAMENTO SEGURO');
+      setBoxState('sldBoxGrid', 'lblStatusGrid', m.energization.grid, '● INJETANDO NA REDE', '○ REDE ISOLADA (0.0 kW)');
+
+      // Relay Label
+      const relayLbl = document.getElementById('sldRelayStatus');
+      if (relayLbl) {
+        if (switches.relayTripped) {
+          relayLbl.className = 'text-[10px] font-bold text-red-400 animate-pulse';
+          relayLbl.innerText = 'TRIP ATUADO (ANSI 50/51)';
+        } else {
+          relayLbl.className = 'text-[10px] font-bold text-emerald-400';
+          relayLbl.innerText = 'NORMAL (ARMADO)';
+        }
+      }
+
+      // SLD values
+      document.getElementById('sldPcc1').innerText = (m.energization.dc1 ? m.rawDc1 : 0).toFixed(1) + ' kW';
+      document.getElementById('sldPcc2').innerText = (m.energization.dc2 ? m.rawDc2 : 0).toFixed(1) + ' kW';
+      document.getElementById('sldPca1').innerText = (m.energization.qgbt1 ? m.inv1Ac : 0).toFixed(1) + ' kW';
+      document.getElementById('sldPca2').innerText = (m.energization.qgbt2 ? m.inv2Ac : 0).toFixed(1) + ' kW';
+      const btTotal = (m.energization.qgbt1 ? m.inv1Ac : 0) + (m.energization.qgbt2 ? m.inv2Ac : 0);
+      document.getElementById('sldTrafoIn').innerText = btTotal.toFixed(1) + ' kW';
+      document.getElementById('sldTrafoOut').innerText = (m.energization.trafo ? Math.max(0, btTotal - m.trafoLoss) : 0).toFixed(1) + ' kW';
+      document.getElementById('sldMeterPower').innerText = m.deliveredMtKw.toFixed(1) + ' kW';
+
+      const gridTag = document.getElementById('sldTagGrid');
+      if (gridTag) {
+        if (m.energization.grid) {
+          gridTag.className = 'p-3 rounded-xl border text-center font-bold bg-red-950/30 border-red-500/50 text-red-300';
+          gridTag.innerText = 'REDE CONCESSIONÁRIA ENERGIZADA';
+        } else {
+          gridTag.className = 'p-3 rounded-xl border text-center font-bold bg-emerald-950/30 border-emerald-500/50 text-emerald-300';
+          gridTag.innerText = 'REDE DESCONECTADA DA USINA';
+        }
+      }
+    }
+
+    // Chart.js initialization & update
+    function initChart() {
+      const ctx = document.getElementById('dailyChartCanvas').getContext('2d');
+      const hoursList = [];
+      for (let h = 6; h <= 18; h += 0.25) {
+        const hh = Math.floor(h);
+        const mm = Math.floor((h - hh) * 60);
+        hoursList.push({ hour: h, label: `${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}` });
+      }
+
+      const labels = hoursList.map(item => item.label);
+      const idealData = hoursList.map(item => computeMetrics(item.hour).idealDelivered);
+      const realData = hoursList.map(item => computeMetrics(item.hour).deliveredMtKw);
+      const inv1Data = hoursList.map(item => computeMetrics(item.hour).inv1Ac);
+      const inv2Data = hoursList.map(item => computeMetrics(item.hour).inv2Ac);
+
+      chartInstance = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels,
+          datasets: [
+            {
+              label: 'Potência Total Injetada na MT (Real)',
+              data: realData,
+              borderColor: tracker1Stuck ? '#ef4444' : '#10b981',
+              backgroundColor: tracker1Stuck ? 'rgba(239, 68, 68, 0.08)' : 'rgba(16, 185, 129, 0.12)',
+              borderWidth: 3,
+              tension: 0.35,
+              fill: true,
+              pointRadius: 0,
+            },
+            {
+              label: 'Inversor 1 (Laranja/Amarelo - Tracker 1)',
+              data: inv1Data,
+              borderColor: '#f59e0b',
+              borderWidth: 2,
+              tension: 0.35,
+              fill: false,
+              pointRadius: 0,
+            },
+            {
+              label: 'Inversor 2 (Azul/Ciano - Tracker 2)',
+              data: inv2Data,
+              borderColor: '#06b6d4',
+              borderWidth: 2,
+              tension: 0.35,
+              fill: false,
+              pointRadius: 0,
+            },
+            {
+              label: 'Geração Esperada Ideal (100% Tracking)',
+              data: idealData,
+              borderColor: '#94a3b8',
+              borderWidth: 2,
+              borderDash: [5, 4],
+              tension: 0.35,
+              fill: false,
+              pointRadius: 0,
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          interaction: { mode: 'index', intersect: false },
+          scales: {
+            x: {
+              grid: { color: '#1e293b' },
+              ticks: { color: '#64748b', font: { family: 'monospace', size: 10 }, maxRotation: 0, callback: (v, i) => i % 4 === 0 ? labels[i] : '' }
+            },
+            y: {
+              title: { display: true, text: 'Potência MT (kW)', color: '#94a3b8', font: { family: 'monospace', size: 11 } },
+              grid: { color: '#1e293b' },
+              ticks: { color: '#64748b', font: { family: 'monospace', size: 10 } },
+              min: 0,
+              max: 60
+            }
+          },
+          plugins: {
+            legend: {
+              position: 'top',
+              labels: { color: '#94a3b8', font: { family: 'monospace', size: 11 }, usePointStyle: true, boxWidth: 10 }
+            }
+          }
+        }
+      });
+    }
+
+    function refreshChart() {
+      if (!chartInstance) return;
+      const hoursList = [];
+      for (let h = 6; h <= 18; h += 0.25) hoursList.push(h);
+      chartInstance.data.datasets[0].data = hoursList.map(h => computeMetrics(h).deliveredMtKw);
+      chartInstance.data.datasets[0].borderColor = tracker1Stuck ? '#ef4444' : '#10b981';
+      chartInstance.data.datasets[1].data = hoursList.map(h => computeMetrics(h).inv1Ac);
+      chartInstance.data.datasets[2].data = hoursList.map(h => computeMetrics(h).inv2Ac);
+      chartInstance.data.datasets[3].data = hoursList.map(h => computeMetrics(h).idealDelivered);
+      chartInstance.update('none');
+    }
+
+    // Switch Operations
+    function toggleDc1() { switches.dc1 = !switches.dc1; updateUI(); refreshChart(); }
+    function toggleDc2() { switches.dc2 = !switches.dc2; updateUI(); refreshChart(); }
+    function toggleQgbt1() { switches.qgbt1 = !switches.qgbt1; updateUI(); refreshChart(); }
+    function toggleQgbt2() { switches.qgbt2 = !switches.qgbt2; updateUI(); refreshChart(); }
+    function toggleTrafoBt() { switches.trafoBt = !switches.trafoBt; updateUI(); refreshChart(); }
+    function toggleCabineSec() { switches.cabineSec = !switches.cabineSec; updateUI(); refreshChart(); }
+    function toggleBreakerMT() { switches.breakerMT = !switches.breakerMT; updateUI(); refreshChart(); }
+    function toggleUtilSec() { switches.utilSec = !switches.utilSec; updateUI(); refreshChart(); }
+    function toggleRecloser() { switches.recloser = !switches.recloser; updateUI(); refreshChart(); }
+
+    function toggleRelayTrip() {
+      switches.relayTripped = !switches.relayTripped;
+      if (switches.relayTripped) switches.breakerMT = false;
+      else switches.breakerMT = true;
+      updateUI();
+      refreshChart();
+    }
+
+    function energizeAll() {
+      switches = { dc1: true, dc2: true, qgbt1: true, qgbt2: true, trafoBt: true, cabineSec: true, breakerMT: true, relayTripped: false, utilSec: true, recloser: true };
+      updateUI();
+      refreshChart();
+    }
+
+    function deenergizeAll() {
+      switches = { dc1: false, dc2: false, qgbt1: false, qgbt2: false, trafoBt: false, cabineSec: false, breakerMT: false, relayTripped: false, utilSec: false, recloser: false };
+      updateUI();
+      refreshChart();
+    }
+
+    // Tab Switching
+    function switchTab(tab) {
+      activeTab = tab;
+      const tabDash = document.getElementById('tabContentDashboard');
+      const tabUnifilar = document.getElementById('tabContentUnifilar');
+      const btnDash = document.getElementById('tabBtnDashboard');
+      const btnUnifilar = document.getElementById('tabBtnUnifilar');
+
+      if (tab === 'dashboard') {
+        tabDash.classList.remove('hidden');
+        tabUnifilar.classList.add('hidden');
+        btnDash.className = 'flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition-all bg-amber-500 text-slate-950 shadow-md';
+        btnUnifilar.className = 'flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition-all bg-slate-800/80 text-slate-300 hover:bg-slate-800 hover:text-white border border-slate-700/60';
+      } else {
+        tabDash.classList.add('hidden');
+        tabUnifilar.classList.remove('hidden');
+        btnUnifilar.className = 'flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition-all bg-amber-500 text-slate-950 shadow-md';
+        btnDash.className = 'flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition-all bg-slate-800/80 text-slate-300 hover:bg-slate-800 hover:text-white border border-slate-700/60';
+      }
+    }
+
+    // Tracker 1 Failure
+    function toggleTracker1Failure() {
+      tracker1Stuck = !tracker1Stuck;
+      const btn = document.getElementById('btnToggleFailure');
+      const card = document.getElementById('tracker1Card');
+      const badge = document.getElementById('t1Badge');
+      if (tracker1Stuck) {
+        btn.className = 'w-full py-2 px-3 rounded-lg text-xs font-bold bg-rose-600 hover:bg-rose-500 text-white transition flex items-center justify-center gap-1.5 animate-pulse';
+        btn.innerText = '✕ Desativar Falha (Restaurar Rastreamento Automático)';
+        card.className = 'p-4 rounded-xl border bg-amber-950/20 border-amber-500/50 transition-all';
+        badge.className = 'text-[10px] px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 font-semibold border border-amber-500/30';
+        badge.innerText = 'TRAVADO (' + tracker1StuckAngle + '°)';
+      } else {
+        btn.className = 'w-full py-2 px-3 rounded-lg text-xs font-bold bg-amber-600 hover:bg-amber-500 text-white transition flex items-center justify-center gap-1.5';
+        btn.innerText = '⚠ Simular Falha no Tracker 1 (Travar Ângulo)';
+        card.className = 'p-4 rounded-xl border bg-slate-950/60 border-slate-800 transition-all';
+        badge.className = 'text-[10px] px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300 font-semibold border border-emerald-500/30';
+        badge.innerText = 'RASTREANDO';
+      }
+      updateUI();
+      refreshChart();
+    }
+
+    function changeStuckAngle(val) {
+      tracker1StuckAngle = parseFloat(val);
+      document.getElementById('lblStuckAngle').innerText = (tracker1StuckAngle > 0 ? '+' : '') + tracker1StuckAngle + '°';
+      if (tracker1Stuck) {
+        document.getElementById('t1Badge').innerText = 'TRAVADO (' + tracker1StuckAngle + '°)';
+        updateUI();
+        refreshChart();
+      }
+    }
+
+    // Time & Playback Controls
+    const timeSlider = document.getElementById('timeSlider');
+    timeSlider.addEventListener('input', (e) => {
+      currentTime = parseFloat(e.target.value);
+      updateUI();
+    });
+
+    function setTime(h) {
+      currentTime = h;
+      updateUI();
+    }
+
+    function togglePlay() {
+      isPlaying = !isPlaying;
+      const playIcon = document.getElementById('playIcon');
+      const playText = document.getElementById('playText');
+      if (isPlaying) {
+        playIcon.innerText = '⏸';
+        playText.innerText = 'Pausar';
+        animInterval = setInterval(() => {
+          currentTime += 0.05 * playSpeed;
+          if (currentTime > 18) currentTime = 6;
+          updateUI();
+        }, 100);
+      } else {
+        playIcon.innerText = '▶';
+        playText.innerText = 'Animar Dia';
+        if (animInterval) clearInterval(animInterval);
+      }
+    }
+
+    function setSpeed(speed) {
+      playSpeed = speed;
+      ['btnSpeed1', 'btnSpeed2', 'btnSpeed4'].forEach(id => {
+        document.getElementById(id).className = 'px-2 py-0.5 rounded text-slate-400';
+      });
+      document.getElementById('btnSpeed' + speed).className = 'px-2 py-0.5 rounded bg-slate-700 text-amber-300 font-bold';
+    }
+
+    function resetSimulation() {
+      currentTime = 12.0;
+      if (isPlaying) togglePlay();
+      if (tracker1Stuck) toggleTracker1Failure();
+      tracker1StuckAngle = -45;
+      document.getElementById('stuckAngleSlider').value = -45;
+      document.getElementById('lblStuckAngle').innerText = '-45°';
+      energizeAll();
+      switchTab('dashboard');
+    }
+
+    // Initialize
+    window.addEventListener('DOMContentLoaded', () => {
+      updateUI();
+      initChart();
+    });
+  </script>
+</body>
+</html>

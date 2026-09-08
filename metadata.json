@@ -1,0 +1,6 @@
+{
+  "name": "Simulador Solar MT",
+  "description": "Simulador interativo de Usina Fotovoltaica de Média Tensão (55 kWp) com trackers de eixo único, inversores, QGBT, proteção MT e diagrama unifilar dinâmico.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
