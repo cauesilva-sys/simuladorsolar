@@ -59,12 +59,12 @@ export const KpiCards: React.FC<KpiCardsProps> = ({ metrics, onOpenStringModal }
 
             <div className="mt-2 flex items-baseline gap-2">
               <span className="text-3xl font-extrabold font-mono text-amber-600">
-                {inverter1.acPowerKw.toFixed(1)}
+                {(inverter1?.acPowerKw ?? 0).toFixed(1)}
               </span>
               <span className="text-sm font-semibold text-slate-500">kW CA</span>
               {inv1Disconnected > 0 && (
                 <span className="text-xs font-bold text-rose-600 font-mono ml-auto">
-                  -{inverter1.stringLossPercent?.toFixed(0)}% CC
+                  -{(inverter1?.stringLossPercent ?? 0).toFixed(0)}% CC
                 </span>
               )}
             </div>
@@ -72,13 +72,13 @@ export const KpiCards: React.FC<KpiCardsProps> = ({ metrics, onOpenStringModal }
 
           <div className="mt-2.5 pt-2 border-t border-slate-100 flex items-center justify-between text-xs">
             <div className="text-slate-600">
-              CC: <span className="text-amber-700 font-mono font-bold">{inverter1.dcPowerKw.toFixed(1)} kW</span>
+              CC: <span className="text-amber-700 font-mono font-bold">{(inverter1?.dcPowerKw ?? 0).toFixed(1)} kW</span>
             </div>
             <div className="text-slate-600">
-              POA: <span className="text-amber-800 font-mono font-bold">{Math.round(tracker1.poaIrradiance)} W/m²</span>
+              POA: <span className="text-amber-800 font-mono font-bold">{Math.round(tracker1?.poaIrradiance ?? 0)} W/m²</span>
             </div>
             <div className="text-slate-600">
-              η: <span className="text-emerald-700 font-mono font-bold">{inverter1.efficiencyPercent.toFixed(1)}%</span>
+              η: <span className="text-emerald-700 font-mono font-bold">{(inverter1?.efficiencyPercent ?? 0).toFixed(1)}%</span>
             </div>
           </div>
         </div>
@@ -108,12 +108,12 @@ export const KpiCards: React.FC<KpiCardsProps> = ({ metrics, onOpenStringModal }
 
             <div className="mt-2 flex items-baseline gap-2">
               <span className="text-3xl font-extrabold font-mono text-cyan-600">
-                {inverter2.acPowerKw.toFixed(1)}
+                {(inverter2?.acPowerKw ?? 0).toFixed(1)}
               </span>
               <span className="text-sm font-semibold text-slate-500">kW CA</span>
               {inv2Disconnected > 0 && (
                 <span className="text-xs font-bold text-rose-600 font-mono ml-auto">
-                  -{inverter2.stringLossPercent?.toFixed(0)}% CC
+                  -{(inverter2?.stringLossPercent ?? 0).toFixed(0)}% CC
                 </span>
               )}
             </div>
@@ -121,13 +121,13 @@ export const KpiCards: React.FC<KpiCardsProps> = ({ metrics, onOpenStringModal }
 
           <div className="mt-2.5 pt-2 border-t border-slate-100 flex items-center justify-between text-xs">
             <div className="text-slate-600">
-              CC: <span className="text-cyan-700 font-mono font-bold">{inverter2.dcPowerKw.toFixed(1)} kW</span>
+              CC: <span className="text-cyan-700 font-mono font-bold">{(inverter2?.dcPowerKw ?? 0).toFixed(1)} kW</span>
             </div>
             <div className="text-slate-600">
-              POA: <span className="text-cyan-800 font-mono font-bold">{Math.round(tracker2.poaIrradiance)} W/m²</span>
+              POA: <span className="text-cyan-800 font-mono font-bold">{Math.round(tracker2?.poaIrradiance ?? 0)} W/m²</span>
             </div>
             <div className="text-slate-600">
-              η: <span className="text-emerald-700 font-mono font-bold">{inverter2.efficiencyPercent.toFixed(1)}%</span>
+              η: <span className="text-emerald-700 font-mono font-bold">{(inverter2?.efficiencyPercent ?? 0).toFixed(1)}%</span>
             </div>
           </div>
         </div>
@@ -146,20 +146,20 @@ export const KpiCards: React.FC<KpiCardsProps> = ({ metrics, onOpenStringModal }
 
           <div className="mt-2 flex items-baseline gap-2">
             <span className="text-3xl font-extrabold font-mono text-emerald-600">
-              {totalMtPowerKw.toFixed(1)}
+              {(totalMtPowerKw ?? 0).toFixed(1)}
             </span>
             <span className="text-sm font-semibold text-slate-500">kW</span>
             <span className="text-xs text-slate-500 font-mono ml-auto">
-              ({totalMtPowerKva.toFixed(1)} kVA)
+              ({(totalMtPowerKva ?? 0).toFixed(1)} kVA)
             </span>
           </div>
 
           <div className="mt-2.5 pt-2 border-t border-slate-100 flex items-center justify-between text-xs">
             <div className="text-slate-600">
-              Corrente MT: <span className="text-emerald-700 font-mono font-bold">{currentMtAmperes.toFixed(2)} A</span>
+              Corrente MT: <span className="text-emerald-700 font-mono font-bold">{(currentMtAmperes ?? 0).toFixed(2)} A</span>
             </div>
             <div className="text-slate-600">
-              Perdas Trafo: <span className="text-slate-700 font-mono">{metrics.trafoLossesKw.toFixed(2)} kW</span>
+              Perdas Trafo: <span className="text-slate-700 font-mono">{(metrics?.trafoLossesKw ?? 0).toFixed(2)} kW</span>
             </div>
           </div>
         </div>
@@ -167,14 +167,14 @@ export const KpiCards: React.FC<KpiCardsProps> = ({ metrics, onOpenStringModal }
         {/* KPI 4: Perda por Desalinhamento */}
         <div
           className={`border rounded-xl p-4 shadow-xs transition-all ${
-            misalignmentLossKw > 0.1
+            (misalignmentLossKw ?? 0) > 0.1
               ? 'bg-rose-50/70 border-rose-300 text-slate-900'
               : 'bg-white border-slate-200 text-slate-800'
           }`}
         >
           <div className="flex items-center justify-between">
             <span className="text-xs font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
-              {misalignmentLossKw > 0.1 ? (
+              {(misalignmentLossKw ?? 0) > 0.1 ? (
                 <TrendingDown className="w-3.5 h-3.5 text-rose-600" />
               ) : (
                 <Activity className="w-3.5 h-3.5 text-emerald-600" />
@@ -183,12 +183,12 @@ export const KpiCards: React.FC<KpiCardsProps> = ({ metrics, onOpenStringModal }
             </span>
             <span
               className={`px-1.5 py-0.5 text-[10px] font-mono font-bold rounded border ${
-                misalignmentLossKw > 0.1
+                (misalignmentLossKw ?? 0) > 0.1
                   ? 'bg-rose-100 text-rose-800 border-rose-300'
                   : 'bg-slate-100 text-slate-700 border-slate-300'
               }`}
             >
-              {misalignmentLossKw > 0.1 ? 'Alerta Perda' : 'Zero Perda'}
+              {(misalignmentLossKw ?? 0) > 0.1 ? 'Alerta Perda' : 'Zero Perda'}
             </span>
           </div>
 
@@ -196,27 +196,27 @@ export const KpiCards: React.FC<KpiCardsProps> = ({ metrics, onOpenStringModal }
             <div className="flex items-baseline gap-1.5">
               <span
                 className={`text-3xl font-extrabold font-mono ${
-                  misalignmentLossKw > 0.1 ? 'text-rose-600' : 'text-slate-700'
+                  (misalignmentLossKw ?? 0) > 0.1 ? 'text-rose-600' : 'text-slate-700'
                 }`}
               >
-                {misalignmentLossKw.toFixed(1)}
+                {(misalignmentLossKw ?? 0).toFixed(1)}
               </span>
               <span className="text-sm font-semibold text-slate-500">kW</span>
             </div>
             <div
               className={`text-lg font-bold font-mono px-2 py-0.5 rounded ${
-                misalignmentLossPercent > 1
+                (misalignmentLossPercent ?? 0) > 1
                   ? 'bg-rose-100 text-rose-800'
                   : 'bg-slate-100 text-slate-600'
               }`}
             >
-              -{misalignmentLossPercent.toFixed(1)}%
+              -{(misalignmentLossPercent ?? 0).toFixed(1)}%
             </div>
           </div>
 
           <div className="mt-2.5 pt-2 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
-            <span>Potência Ideal: <strong className="text-slate-700 font-mono">{idealMtPowerKw.toFixed(1)} kW</strong></span>
-            <span>Delta Real: <strong className="text-rose-700 font-mono">{(idealMtPowerKw - totalMtPowerKw).toFixed(1)} kW</strong></span>
+            <span>Potência Ideal: <strong className="text-slate-700 font-mono">{(idealMtPowerKw ?? 0).toFixed(1)} kW</strong></span>
+            <span>Delta Real: <strong className="text-rose-700 font-mono">{((idealMtPowerKw ?? 0) - (totalMtPowerKw ?? 0)).toFixed(1)} kW</strong></span>
           </div>
         </div>
       </div>
@@ -280,14 +280,14 @@ export const KpiCards: React.FC<KpiCardsProps> = ({ metrics, onOpenStringModal }
           <div className="flex items-center gap-2">
             <span className="text-slate-500">Energia Diária Simulada:</span>
             <span className="font-bold font-mono text-emerald-700 text-sm">
-              {dailyRealEnergyKwh.toFixed(1)} kWh
+              {(dailyRealEnergyKwh ?? 0).toFixed(1)} kWh
             </span>
           </div>
 
           <div className="flex items-center gap-2">
             <span className="text-slate-500">Energia Diária Ideal (Sem Falhas):</span>
             <span className="font-bold font-mono text-slate-800 text-sm">
-              {dailyIdealEnergyKwh.toFixed(1)} kWh
+              {(dailyIdealEnergyKwh ?? 0).toFixed(1)} kWh
             </span>
           </div>
 
@@ -295,11 +295,11 @@ export const KpiCards: React.FC<KpiCardsProps> = ({ metrics, onOpenStringModal }
             <span className="text-slate-500">Perda Total Diária Acumulada:</span>
             <span
               className={`font-bold font-mono text-sm ${
-                dailyLossKwh > 0.5 ? 'text-rose-600' : 'text-emerald-700'
+                (dailyLossKwh ?? 0) > 0.5 ? 'text-rose-600' : 'text-emerald-700'
               }`}
             >
-              -{dailyLossKwh.toFixed(1)} kWh (
-              {dailyIdealEnergyKwh > 0 ? ((dailyLossKwh / dailyIdealEnergyKwh) * 100).toFixed(1) : 0}%)
+              -{(dailyLossKwh ?? 0).toFixed(1)} kWh (
+              {(dailyIdealEnergyKwh ?? 0) > 0 ? (((dailyLossKwh ?? 0) / dailyIdealEnergyKwh) * 100).toFixed(1) : '0.0'}%)
             </span>
           </div>
         </div>

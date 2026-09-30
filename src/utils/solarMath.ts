@@ -19,19 +19,24 @@ export const TRAFO_RATED_KVA = 75; // 75 kVA
 export const POWER_FACTOR = 0.98;
 
 export function formatTime(hourDecimal: number): string {
-  const hours = Math.floor(hourDecimal);
-  const minutes = Math.round((hourDecimal - hours) * 60);
-  const hh = String(hours).padStart(2, '0');
-  const mm = String(minutes).padStart(2, '0');
+  if (typeof hourDecimal !== 'number' || isNaN(hourDecimal) || !isFinite(hourDecimal)) {
+    return '12:00';
+  }
+  const clamped = Math.max(0, Math.min(24, hourDecimal));
+  const hours = Math.floor(clamped);
+  const minutes = Math.round((clamped - hours) * 60);
+  const hh = String(hours % 24).padStart(2, '0');
+  const mm = String(Math.min(59, Math.max(0, minutes))).padStart(2, '0');
   return `${hh}:${mm}`;
 }
 
 export function calculateSolarParameters(timeHour: number): SolarParameters {
-  const clampedHour = Math.max(6, Math.min(18, timeHour));
+  const safeHour = typeof timeHour === 'number' && isFinite(timeHour) ? timeHour : 12.0;
+  const clampedHour = Math.max(6, Math.min(18, safeHour));
   const sunAngle = (clampedHour - 12) * 15;
   const sunElevation = Math.max(0, 75 * Math.sin(((clampedHour - 6) / 12) * Math.PI));
   const zenithFactor = Math.sin(((clampedHour - 6) / 12) * Math.PI);
-  const ghi = Math.max(0, 1000 * Math.pow(zenithFactor, 1.25));
+  const ghi = Math.max(0, 1000 * Math.pow(Math.max(0, zenithFactor), 1.25));
 
   return {
     timeHour: clampedHour,

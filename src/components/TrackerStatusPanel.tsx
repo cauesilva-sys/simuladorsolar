@@ -127,7 +127,7 @@ export const TrackerStatusPanel: React.FC<TrackerStatusPanelProps> = ({
 
             {/* Angle Indicator Tag */}
             <div className="absolute top-2 right-2 bg-slate-900 text-white px-2 py-0.5 rounded text-[11px] font-mono font-bold shadow-xs">
-              {tracker1.angle > 0 ? `+${tracker1.angle.toFixed(1)}°` : `${tracker1.angle.toFixed(1)}°`}
+              {(tracker1?.angle ?? 0) > 0 ? `+${(tracker1?.angle ?? 0).toFixed(1)}°` : `${(tracker1?.angle ?? 0).toFixed(1)}°`}
             </div>
 
             {tracker1.isStuck && (
@@ -135,7 +135,7 @@ export const TrackerStatusPanel: React.FC<TrackerStatusPanelProps> = ({
                 <RotateCw className="w-3 h-3 text-amber-700" />
                 <span>
                   {tracker1.isFailureActiveNow
-                    ? `Desalinhado: ${tracker1.misalignmentAngle.toFixed(1)}°`
+                    ? `Desalinhado: ${(tracker1?.misalignmentAngle ?? 0).toFixed(1)}°`
                     : `Falha programada às ${failureHourString}h`}
                 </span>
               </div>
@@ -147,7 +147,7 @@ export const TrackerStatusPanel: React.FC<TrackerStatusPanelProps> = ({
             <div className="bg-white p-2 rounded border border-slate-200 shadow-xs">
               <span className="text-[10px] text-slate-500 block">Irradiação POA</span>
               <span className="text-sm font-bold font-mono text-slate-900">
-                {Math.round(tracker1.poaIrradiance)}
+                {Math.round(tracker1?.poaIrradiance ?? 0)}
               </span>
               <span className="text-[9px] text-slate-500"> W/m²</span>
             </div>
@@ -155,7 +155,7 @@ export const TrackerStatusPanel: React.FC<TrackerStatusPanelProps> = ({
             <div className="bg-white p-2 rounded border border-slate-200 shadow-xs">
               <span className="text-[10px] text-slate-500 block">Ângulo Ideal</span>
               <span className="text-sm font-bold font-mono text-sky-700">
-                {tracker1.idealAngle > 0 ? `+${tracker1.idealAngle.toFixed(0)}°` : `${tracker1.idealAngle.toFixed(0)}°`}
+                {(tracker1?.idealAngle ?? 0) > 0 ? `+${(tracker1?.idealAngle ?? 0).toFixed(0)}°` : `${(tracker1?.idealAngle ?? 0).toFixed(0)}°`}
               </span>
               <span className="text-[9px] text-slate-500"> rastreado</span>
             </div>
@@ -164,10 +164,10 @@ export const TrackerStatusPanel: React.FC<TrackerStatusPanelProps> = ({
               <span className="text-[10px] text-slate-500 block">Perda Mecânica</span>
               <span
                 className={`text-sm font-bold font-mono ${
-                  tracker1.misalignmentLossPercent > 5 ? 'text-amber-700' : 'text-slate-700'
+                  (tracker1?.misalignmentLossPercent ?? 0) > 5 ? 'text-amber-700' : 'text-slate-700'
                 }`}
               >
-                {tracker1.misalignmentLossPercent.toFixed(1)}%
+                {(tracker1?.misalignmentLossPercent ?? 0).toFixed(1)}%
               </span>
               <span className="text-[9px] text-slate-500"> vs ideal</span>
             </div>
@@ -289,7 +289,7 @@ export const TrackerStatusPanel: React.FC<TrackerStatusPanelProps> = ({
               </div>
 
               <div className="absolute top-2 right-2 bg-slate-900 text-white px-2 py-0.5 rounded text-[11px] font-mono font-bold shadow-xs">
-                {tracker2.angle > 0 ? `+${tracker2.angle.toFixed(1)}°` : `${tracker2.angle.toFixed(1)}°`}
+                {(tracker2?.angle ?? 0) > 0 ? `+${(tracker2?.angle ?? 0).toFixed(1)}°` : `${(tracker2?.angle ?? 0).toFixed(1)}°`}
               </div>
 
               <div className="absolute top-2 left-2 bg-emerald-100 text-emerald-900 px-2 py-0.5 rounded text-[10px] font-mono font-bold border border-emerald-300 flex items-center gap-1 shadow-xs">
@@ -303,12 +303,12 @@ export const TrackerStatusPanel: React.FC<TrackerStatusPanelProps> = ({
               <div className="bg-white p-2 rounded border border-slate-200 shadow-xs">
                 <span className="text-[10px] text-slate-500 block">Irradiação POA</span>
                 <span className="text-sm font-bold font-mono text-slate-900">
-                  {Math.round(tracker2.poaIrradiance)}
+                  {Math.round(tracker2?.poaIrradiance ?? 0)}
                 </span>
                 <span className="text-[9px] text-slate-500"> W/m²</span>
-                {ghi > 10 && tracker2.poaIrradiance >= ghi && (
+                {ghi > 10 && (tracker2?.poaIrradiance ?? 0) >= ghi && (
                   <span className="text-[9px] text-emerald-700 font-bold block">
-                    +{(((tracker2.poaIrradiance - ghi) / ghi) * 100).toFixed(0)}% vs GHI
+                    +{((((tracker2?.poaIrradiance ?? 0) - ghi) / ghi) * 100).toFixed(0)}% vs GHI
                   </span>
                 )}
               </div>
@@ -316,7 +316,7 @@ export const TrackerStatusPanel: React.FC<TrackerStatusPanelProps> = ({
               <div className="bg-white p-2 rounded border border-slate-200 shadow-xs">
                 <span className="text-[10px] text-slate-500 block">Ângulo Sol</span>
                 <span className="text-sm font-bold font-mono text-cyan-700">
-                  {tracker2.idealAngle > 0 ? `+${tracker2.idealAngle.toFixed(0)}°` : `${tracker2.idealAngle.toFixed(0)}°`}
+                  {(tracker2?.idealAngle ?? 0) > 0 ? `+${(tracker2?.idealAngle ?? 0).toFixed(0)}°` : `${(tracker2?.idealAngle ?? 0).toFixed(0)}°`}
                 </span>
                 <span className="text-[9px] text-slate-500"> alinhamento 1:1</span>
               </div>

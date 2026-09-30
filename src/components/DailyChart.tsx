@@ -62,6 +62,7 @@ export const DailyChart: React.FC<DailyChartProps> = ({
 }) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const chartInstanceRef = useRef<Chart | null>(null);
+  const lastAxesConfigRef = useRef<string>('');
 
   // Individual curve selection state
   const [selectedCurves, setSelectedCurves] = useState<{
@@ -140,18 +141,18 @@ export const DailyChart: React.FC<DailyChartProps> = ({
   };
 
   const labels = dailyProfile.map((d) => d.timeString);
-  const idealData = dailyProfile.map((d) => parseFloat(d.idealPowerKw.toFixed(2)));
+  const idealData = dailyProfile.map((d) => parseFloat((d.idealPowerKw ?? 0).toFixed(2)));
   const idealInvData = dailyProfile.map((d) =>
-    parseFloat((d.idealInvPowerKw ?? d.idealPowerKw / 2).toFixed(2))
+    parseFloat((d.idealInvPowerKw ?? (d.idealPowerKw ?? 0) / 2).toFixed(2))
   );
-  const realData = dailyProfile.map((d) => parseFloat(d.realPowerKw.toFixed(2)));
-  const inv1Data = dailyProfile.map((d) => parseFloat(d.inv1PowerKw.toFixed(2)));
-  const inv2Data = dailyProfile.map((d) => parseFloat(d.inv2PowerKw.toFixed(2)));
+  const realData = dailyProfile.map((d) => parseFloat((d.realPowerKw ?? 0).toFixed(2)));
+  const inv1Data = dailyProfile.map((d) => parseFloat((d.inv1PowerKw ?? 0).toFixed(2)));
+  const inv2Data = dailyProfile.map((d) => parseFloat((d.inv2PowerKw ?? 0).toFixed(2)));
 
-  const ghiData = dailyProfile.map((d) => parseFloat(d.ghi.toFixed(1)));
-  const poa1Data = dailyProfile.map((d) => parseFloat(d.poa1.toFixed(1)));
-  const poa2Data = dailyProfile.map((d) => parseFloat(d.poa2.toFixed(1)));
-  const poaIdealData = dailyProfile.map((d) => parseFloat(d.poaIdeal.toFixed(1)));
+  const ghiData = dailyProfile.map((d) => parseFloat((d.ghi ?? 0).toFixed(1)));
+  const poa1Data = dailyProfile.map((d) => parseFloat((d.poa1 ?? 0).toFixed(1)));
+  const poa2Data = dailyProfile.map((d) => parseFloat((d.poa2 ?? 0).toFixed(1)));
+  const poaIdealData = dailyProfile.map((d) => parseFloat((d.poaIdeal ?? 0).toFixed(1)));
 
   // Current time formatted
   const currentFormatted = formatTime(currentTime);
@@ -159,15 +160,15 @@ export const DailyChart: React.FC<DailyChartProps> = ({
     (d) => Math.abs(d.hour - currentTime) < 0.15
   );
 
-  const curInv1 = currentIndex >= 0 ? inv1Data[currentIndex] : 0;
-  const curInv2 = currentIndex >= 0 ? inv2Data[currentIndex] : 0;
-  const curTotal = currentIndex >= 0 ? realData[currentIndex] : 0;
-  const curIdeal = currentIndex >= 0 ? idealData[currentIndex] : 0;
-  const curIdealInv = currentIndex >= 0 ? idealInvData[currentIndex] : 0;
-  const curGhi = currentIndex >= 0 ? ghiData[currentIndex] : 0;
-  const curPoa1 = currentIndex >= 0 ? poa1Data[currentIndex] : 0;
-  const curPoa2 = currentIndex >= 0 ? poa2Data[currentIndex] : 0;
-  const curPoaIdeal = currentIndex >= 0 ? poaIdealData[currentIndex] : 0;
+  const curInv1 = currentIndex >= 0 && currentIndex < inv1Data.length ? inv1Data[currentIndex] : 0;
+  const curInv2 = currentIndex >= 0 && currentIndex < inv2Data.length ? inv2Data[currentIndex] : 0;
+  const curTotal = currentIndex >= 0 && currentIndex < realData.length ? realData[currentIndex] : 0;
+  const curIdeal = currentIndex >= 0 && currentIndex < idealData.length ? idealData[currentIndex] : 0;
+  const curIdealInv = currentIndex >= 0 && currentIndex < idealInvData.length ? idealInvData[currentIndex] : 0;
+  const curGhi = currentIndex >= 0 && currentIndex < ghiData.length ? ghiData[currentIndex] : 0;
+  const curPoa1 = currentIndex >= 0 && currentIndex < poa1Data.length ? poa1Data[currentIndex] : 0;
+  const curPoa2 = currentIndex >= 0 && currentIndex < poa2Data.length ? poa2Data[currentIndex] : 0;
+  const curPoaIdeal = currentIndex >= 0 && currentIndex < poaIdealData.length ? poaIdealData[currentIndex] : 0;
 
   // Track active axis requirements
   const hasPower =
@@ -178,6 +179,8 @@ export const DailyChart: React.FC<DailyChartProps> = ({
     selectedCurves.refInv;
   const hasIrradiance =
     selectedCurves.poa1 || selectedCurves.poa2 || selectedCurves.ghi;
+
+  const currentAxesKey = `${hasPower}-${hasIrradiance}`;
 
   useEffect(() => {
     if (!canvasRef.current) return;
@@ -354,6 +357,37 @@ export const DailyChart: React.FC<DailyChartProps> = ({
       });
     }
 
+    // Try in-place dataset update if chart is already active with the same axis configuration
+    if (
+      chartInstanceRef.current &&
+      lastAxesConfigRef.current === currentAxesKey
+    ) {
+      try {
+        chartInstanceRef.current.data.labels = labels;
+        chartInstanceRef.current.data.datasets = datasets;
+        chartInstanceRef.current.update('none');
+        return;
+      } catch (err) {
+        console.warn('Atualização in-place do Chart.js falhou, recriando:', err);
+      }
+    }
+
+    // Otherwise safely clean up previous chart before creating a new one
+    try {
+      if (canvasRef.current) {
+        const existing = Chart.getChart(canvasRef.current);
+        if (existing) {
+          existing.destroy();
+        }
+      }
+      if (chartInstanceRef.current) {
+        chartInstanceRef.current.destroy();
+        chartInstanceRef.current = null;
+      }
+    } catch (e) {
+      console.warn('Erro ao limpar chart anterior:', e);
+    }
+
     // Build scale configuration based on active domains
     const scales: any = {
       x: {
@@ -362,8 +396,8 @@ export const DailyChart: React.FC<DailyChartProps> = ({
           color: '#64748b',
           font: { family: 'monospace', size: 10 },
           maxRotation: 0,
-          callback: (val: any, index: number) =>
-            index % 4 === 0 ? labels[index] : '',
+          callback: (_val: any, index: number) =>
+            index % 4 === 0 && labels[index] ? labels[index] : '',
         },
       },
     };
@@ -432,112 +466,136 @@ export const DailyChart: React.FC<DailyChartProps> = ({
       };
     }
 
-    chartInstanceRef.current = new Chart(ctx, {
-      type: 'line',
-      data: {
-        labels,
-        datasets,
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        interaction: {
-          mode: 'index',
-          intersect: false,
+    try {
+      chartInstanceRef.current = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels,
+          datasets,
         },
-        plugins: {
-          legend: {
-            display: false, // We use rich interactive custom HTML pill controls below & above
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          interaction: {
+            mode: 'index',
+            intersect: false,
           },
-          tooltip: {
-            backgroundColor: '#0f172a',
-            borderColor: '#334155',
-            borderWidth: 1,
-            titleColor: '#f8fafc',
-            bodyColor: '#cbd5e1',
-            titleFont: { family: 'monospace', size: 12, weight: 'bold' },
-            bodyFont: { family: 'monospace', size: 11 },
-            padding: 10,
-            callbacks: {
-              title: (items) => `Horário da Simulação: ${items[0].label}h`,
-              label: (context) => {
-                const label = context.dataset.label || '';
-                const val = context.parsed.y;
-                const isIrradiance = label.includes('W/m²') || label.includes('POA') || label.includes('GHI');
-                const unit = isIrradiance ? 'W/m²' : 'kW';
-                return ` ${label}: ${val.toFixed(1)} ${unit}`;
-              },
-              afterBody: (items) => {
-                const idx = items[0].dataIndex;
-                const lines: string[] = [];
-                const real = realData[idx];
-                const ideal = idealData[idx];
-                const inv1 = inv1Data[idx];
-                const inv2 = inv2Data[idx];
-                const invRef = idealInvData[idx];
-                const ghi = ghiData[idx];
-                const poa2 = poa2Data[idx];
-                const poa1 = poa1Data[idx];
+          plugins: {
+            legend: {
+              display: false,
+            },
+            tooltip: {
+              backgroundColor: '#0f172a',
+              borderColor: '#334155',
+              borderWidth: 1,
+              titleColor: '#f8fafc',
+              bodyColor: '#cbd5e1',
+              titleFont: { family: 'monospace', size: 12, weight: 'bold' },
+              bodyFont: { family: 'monospace', size: 11 },
+              padding: 10,
+              callbacks: {
+                title: (items) => (items && items[0] ? `Horário da Simulação: ${items[0].label}h` : ''),
+                label: (context) => {
+                  const label = context?.dataset?.label || '';
+                  const val = context?.parsed?.y;
+                  if (val === undefined || val === null || isNaN(val)) return ` ${label}: 0.0`;
+                  const isIrradiance = label.includes('W/m²') || label.includes('POA') || label.includes('GHI');
+                  const unit = isIrradiance ? 'W/m²' : 'kW';
+                  return ` ${label}: ${Number(val).toFixed(1)} ${unit}`;
+                },
+                afterBody: (items) => {
+                  if (!items || items.length === 0) return [];
+                  const idx = items[0]?.dataIndex;
+                  if (idx === undefined || idx < 0 || idx >= realData.length) return [];
+                  const lines: string[] = [];
+                  const real = realData[idx] ?? 0;
+                  const ideal = idealData[idx] ?? 0;
+                  const inv1 = inv1Data[idx] ?? 0;
+                  const inv2 = inv2Data[idx] ?? 0;
+                  const invRef = idealInvData[idx] ?? 0;
+                  const ghi = ghiData[idx] ?? 0;
+                  const poa2 = poa2Data[idx] ?? 0;
+                  const poa1 = poa1Data[idx] ?? 0;
 
-                // Check difference between inverters and individual reference
-                if (selectedCurves.inv1 || selectedCurves.inv2) {
-                  const d1 = (inv1 - invRef).toFixed(1);
-                  const d2 = (inv2 - invRef).toFixed(1);
-                  lines.push(` ──────── Inversores (10 strings cada) ────────`);
-                  lines.push(` • Inversor 1 (${10 - disconnectedStringsInv1}/10 strings): ${inv1.toFixed(1)} kW (${Number(d1) >= 0 ? '+' : ''}${d1} kW vs ref)`);
-                  lines.push(` • Inversor 2 (${10 - disconnectedStringsInv2}/10 strings): ${inv2.toFixed(1)} kW (${Number(d2) >= 0 ? '+' : ''}${d2} kW vs ref)`);
-                  if (tracker1Stuck) {
-                    const isStuckNow = dailyProfile[idx]?.isTracker1StuckAtThisHour;
-                    lines.push(` • Tracker 1: ${isStuckNow ? `TRAVADO em ${tracker1StuckAngle}° (falha após ${formatTime(tracker1FailureHour)}h)` : `Normal (antes das ${formatTime(tracker1FailureHour)}h)`}`);
+                  // Check difference between inverters and individual reference
+                  if (selectedCurves.inv1 || selectedCurves.inv2) {
+                    const d1 = (inv1 - invRef).toFixed(1);
+                    const d2 = (inv2 - invRef).toFixed(1);
+                    lines.push(` ──────── Inversores (10 strings cada) ────────`);
+                    lines.push(` • Inversor 1 (${10 - disconnectedStringsInv1}/10 strings): ${inv1.toFixed(1)} kW (${Number(d1) >= 0 ? '+' : ''}${d1} kW vs ref)`);
+                    lines.push(` • Inversor 2 (${10 - disconnectedStringsInv2}/10 strings): ${inv2.toFixed(1)} kW (${Number(d2) >= 0 ? '+' : ''}${d2} kW vs ref)`);
+                    if (tracker1Stuck) {
+                      const isStuckNow = dailyProfile[idx]?.isTracker1StuckAtThisHour;
+                      lines.push(` • Tracker 1: ${isStuckNow ? `TRAVADO em ${tracker1StuckAngle}° (falha após ${formatTime(tracker1FailureHour)}h)` : `Normal (antes das ${formatTime(tracker1FailureHour)}h)`}`);
+                    }
+                    if (Math.abs(inv2 - inv1) > 0.3) {
+                      lines.push(` ⚠ Desvio entre Inversores: ${(inv2 - inv1).toFixed(1)} kW`);
+                    }
                   }
-                  if (Math.abs(inv2 - inv1) > 0.3) {
-                    lines.push(` ⚠ Desvio entre Inversores: ${(inv2 - inv1).toFixed(1)} kW`);
-                  }
-                }
 
-                // Check plant total difference vs reference
-                if (selectedCurves.totalMt && selectedCurves.refTotal) {
-                  const loss = ideal - real;
-                  if (loss > 0.1) {
-                    lines.push(` ──────── Usina Total vs Referência ────────`);
-                    lines.push(` ⚠ Perda Total MT: -${loss.toFixed(2)} kW (-${((loss / ideal) * 100).toFixed(1)}%)`);
+                  // Check plant total difference vs reference
+                  if (selectedCurves.totalMt && selectedCurves.refTotal) {
+                    const loss = ideal - real;
+                    if (loss > 0.1) {
+                      const pctLoss = ideal > 0 ? ((loss / ideal) * 100).toFixed(1) : '0.0';
+                      lines.push(` ──────── Usina Total vs Referência ────────`);
+                      lines.push(` ⚠ Perda Total MT: -${loss.toFixed(2)} kW (-${pctLoss}%)`);
+                    }
                   }
-                }
 
-                // Check irradiance differences
-                if (selectedCurves.poa2 || selectedCurves.ghi || selectedCurves.poa1) {
-                  lines.push(` ──────── Irradiância: POA vs GHI ────────`);
-                  if (ghi > 20 && poa2 > ghi) {
-                    const gain = (((poa2 - ghi) / ghi) * 100).toFixed(1);
-                    lines.push(` ✦ Ganho Tracker 2 (POA vs Solo GHI): +${gain}% (+${(poa2 - ghi).toFixed(0)} W/m²)`);
+                  // Check irradiance differences
+                  if (selectedCurves.poa2 || selectedCurves.ghi || selectedCurves.poa1) {
+                    lines.push(` ──────── Irradiância: POA vs GHI ────────`);
+                    if (ghi > 20 && poa2 > ghi) {
+                      const gain = (((poa2 - ghi) / ghi) * 100).toFixed(1);
+                      lines.push(` ✦ Ganho Tracker 2 (POA vs Solo GHI): +${gain}% (+${(poa2 - ghi).toFixed(0)} W/m²`);
+                    }
+                    if (tracker1Stuck && poa2 > poa1 + 5) {
+                      lines.push(` ⚠ Perda Óptica Tracker 1 Travado: -${(poa2 - poa1).toFixed(0)} W/m²`);
+                    }
                   }
-                  if (tracker1Stuck && poa2 > poa1 + 5) {
-                    lines.push(` ⚠ Perda Óptica Tracker 1 Travado: -${(poa2 - poa1).toFixed(0)} W/m²`);
-                  }
-                }
 
-                return lines;
+                  return lines;
+                },
               },
             },
           },
+          scales,
         },
-        scales,
-      },
-    });
+      });
+      lastAxesConfigRef.current = currentAxesKey;
+    } catch (err) {
+      console.error('Falha ao instanciar Chart.js:', err);
+    }
 
     return () => {
-      if (chartInstanceRef.current) {
-        chartInstanceRef.current.destroy();
+      try {
+        if (chartInstanceRef.current) {
+          chartInstanceRef.current.destroy();
+          chartInstanceRef.current = null;
+        }
+        if (canvasRef.current) {
+          const existing = Chart.getChart(canvasRef.current);
+          if (existing) {
+            existing.destroy();
+          }
+        }
+      } catch (e) {
+        console.warn('Aviso no cleanup de Chart.js:', e);
       }
     };
   }, [
     dailyProfile,
     tracker1Stuck,
     tracker1StuckAngle,
+    tracker1FailureHour,
+    disconnectedStringsInv1,
+    disconnectedStringsInv2,
     currentIndex,
     selectedCurves,
     hasPower,
     hasIrradiance,
+    currentAxesKey,
   ]);
 
   // Delta calculations for instantaneous strip

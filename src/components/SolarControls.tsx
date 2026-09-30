@@ -28,28 +28,51 @@ export const SolarControls: React.FC<SolarControlsProps> = ({
 }) => {
   const animFrameRef = useRef<number | null>(null);
   const lastTickRef = useRef<number>(performance.now());
+  const timeHourRef = useRef<number>(solar.timeHour);
+  const playbackSpeedRef = useRef<number>(playbackSpeed);
+  const onTimeChangeRef = useRef<(hour: number) => void>(onTimeChange);
 
-  // Animation loop when playing
+  // Keep refs synchronized
+  useEffect(() => {
+    timeHourRef.current = solar.timeHour;
+  }, [solar.timeHour]);
+
+  useEffect(() => {
+    playbackSpeedRef.current = playbackSpeed;
+  }, [playbackSpeed]);
+
+  useEffect(() => {
+    onTimeChangeRef.current = onTimeChange;
+  }, [onTimeChange]);
+
+  // Smooth, stable animation loop that does not cancel/restart every frame
   useEffect(() => {
     if (!isPlaying) {
-      if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
+      if (animFrameRef.current !== null) {
+        cancelAnimationFrame(animFrameRef.current);
+        animFrameRef.current = null;
+      }
       return;
     }
 
     lastTickRef.current = performance.now();
 
     const loop = (time: number) => {
-      const deltaSec = (time - lastTickRef.current) / 1000;
+      const deltaSec = Math.min(0.1, Math.max(0, (time - lastTickRef.current) / 1000));
       lastTickRef.current = time;
 
-      // 1 real second = 0.5 hour at 1x speed
-      const hourStep = deltaSec * 0.4 * playbackSpeed;
+      // 1 real second = 0.4 hour at 1x speed
+      const hourStep = deltaSec * 0.4 * playbackSpeedRef.current;
       
-      let nextHour = solar.timeHour + hourStep;
-      if (nextHour > 18) {
+      let nextHour = timeHourRef.current + hourStep;
+      if (isNaN(nextHour) || !isFinite(nextHour)) {
+        nextHour = 12.0;
+      } else if (nextHour > 18) {
         nextHour = 6.0; // Loop back to sunrise
       }
-      onTimeChange(nextHour);
+      
+      timeHourRef.current = nextHour;
+      onTimeChangeRef.current(nextHour);
 
       animFrameRef.current = requestAnimationFrame(loop);
     };
@@ -57,9 +80,12 @@ export const SolarControls: React.FC<SolarControlsProps> = ({
     animFrameRef.current = requestAnimationFrame(loop);
 
     return () => {
-      if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
+      if (animFrameRef.current !== null) {
+        cancelAnimationFrame(animFrameRef.current);
+        animFrameRef.current = null;
+      }
     };
-  }, [isPlaying, playbackSpeed, solar.timeHour, onTimeChange]);
+  }, [isPlaying]);
 
   // Sun visual coordinates on celestial hemisphere (arc from 6h to 18h)
   const normalizedTime = (solar.timeHour - 6) / 12; // 0 to 1

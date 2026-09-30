@@ -199,11 +199,11 @@ export const UnifilarDiagram: React.FC<UnifilarDiagramProps> = ({
                   </span>
                 </div>
                 <div className="text-[11px] text-slate-600">
-                  Tracker 1: <strong className="text-amber-700">{tracker1.angle > 0 ? `+${tracker1.angle.toFixed(0)}°` : `${tracker1.angle.toFixed(0)}°`}</strong>
+                  Tracker 1: <strong className="text-amber-700">{(tracker1?.angle ?? 0) > 0 ? `+${(tracker1?.angle ?? 0).toFixed(0)}°` : `${(tracker1?.angle ?? 0).toFixed(0)}°`}</strong>
                   {tracker1.isStuck && <span className="text-amber-800 text-[10px] font-bold ml-1">(Travado)</span>}
                 </div>
                 <div className="mt-1 text-[11px] text-slate-700">
-                  P_gerada: <strong className="text-slate-900 font-bold">{inverter1.dcPowerKw.toFixed(1)} kW</strong>
+                  P_gerada: <strong className="text-slate-900 font-bold">{(inverter1?.dcPowerKw ?? 0).toFixed(1)} kW</strong>
                 </div>
 
                 {/* Chave Seccionadora CC 1 */}
@@ -249,11 +249,11 @@ export const UnifilarDiagram: React.FC<UnifilarDiagramProps> = ({
                   </span>
                 </div>
                 <div className="text-[11px] text-slate-600">
-                  Tracker 2: <strong className="text-cyan-700">{tracker2.angle > 0 ? `+${tracker2.angle.toFixed(0)}°` : `${tracker2.angle.toFixed(0)}°`}</strong>
+                  Tracker 2: <strong className="text-cyan-700">{(tracker2?.angle ?? 0) > 0 ? `+${(tracker2?.angle ?? 0).toFixed(0)}°` : `${(tracker2?.angle ?? 0).toFixed(0)}°`}</strong>
                   <span className="text-emerald-700 text-[10px] font-bold ml-1">(Rastreando)</span>
                 </div>
                 <div className="mt-1 text-[11px] text-slate-700">
-                  P_gerada: <strong className="text-slate-900 font-bold">{inverter2.dcPowerKw.toFixed(1)} kW</strong>
+                  P_gerada: <strong className="text-slate-900 font-bold">{(inverter2?.dcPowerKw ?? 0).toFixed(1)} kW</strong>
                 </div>
 
                 {/* Chave Seccionadora CC 2 */}
@@ -300,10 +300,10 @@ export const UnifilarDiagram: React.FC<UnifilarDiagramProps> = ({
                   </span>
                 </div>
                 <div className="text-[11px] text-slate-700">
-                  Saída CA: <strong className="text-amber-700 font-bold">{inverter1.acPowerKw.toFixed(1)} kW</strong>
+                  Saída CA: <strong className="text-amber-700 font-bold">{(inverter1?.acPowerKw ?? 0).toFixed(1)} kW</strong>
                 </div>
                 <div className="text-[10px] text-slate-500">
-                  Corrente: {inverter1.currentAc.toFixed(1)} A · η: {inverter1.efficiencyPercent.toFixed(1)}%
+                  Corrente: {(inverter1?.currentAc ?? 0).toFixed(1)} A · η: {(inverter1?.efficiencyPercent ?? 0).toFixed(1)}%
                 </div>
 
                 {/* Disjuntor QGBT 1 */}
@@ -347,10 +347,10 @@ export const UnifilarDiagram: React.FC<UnifilarDiagramProps> = ({
                   </span>
                 </div>
                 <div className="text-[11px] text-slate-700">
-                  Saída CA: <strong className="text-cyan-700 font-bold">{inverter2.acPowerKw.toFixed(1)} kW</strong>
+                  Saída CA: <strong className="text-cyan-700 font-bold">{(inverter2?.acPowerKw ?? 0).toFixed(1)} kW</strong>
                 </div>
                 <div className="text-[10px] text-slate-500">
-                  Corrente: {inverter2.currentAc.toFixed(1)} A · η: {inverter2.efficiencyPercent.toFixed(1)}%
+                  Corrente: {(inverter2?.currentAc ?? 0).toFixed(1)} A · η: {(inverter2?.efficiencyPercent ?? 0).toFixed(1)}%
                 </div>
 
                 {/* Disjuntor QGBT 2 */}
@@ -429,16 +429,16 @@ export const UnifilarDiagram: React.FC<UnifilarDiagramProps> = ({
                 <div className="mt-2 text-[11px] space-y-0.5">
                   <div className="flex justify-between">
                     <span className="text-slate-500">Potência BT:</span>
-                    <span className="text-slate-900 font-bold">{metrics.totalBtPowerKw.toFixed(1)} kW</span>
+                    <span className="text-slate-900 font-bold">{(metrics?.totalBtPowerKw ?? 0).toFixed(1)} kW</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-slate-500">Perdas Trafo:</span>
-                    <span className="text-slate-600">{metrics.trafoLossesKw.toFixed(2)} kW</span>
+                    <span className="text-slate-600">{(metrics?.trafoLossesKw ?? 0).toFixed(2)} kW</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-slate-500">Saída MT:</span>
                     <span className="text-amber-700 font-bold">
-                      {energization.trafoMtSide ? (metrics.totalBtPowerKw - metrics.trafoLossesKw).toFixed(1) : '0.0'} kW
+                      {energization.trafoMtSide ? ((metrics?.totalBtPowerKw ?? 0) - (metrics?.trafoLossesKw ?? 0)).toFixed(1) : '0.0'} kW
                     </span>
                   </div>
                 </div>
@@ -582,12 +582,12 @@ export const UnifilarDiagram: React.FC<UnifilarDiagramProps> = ({
                         <Gauge className="w-3.5 h-3.5 text-amber-600" /> Medidor:
                       </span>
                       <strong className="text-slate-900 text-xs font-bold">
-                        {energization.gridDelivering ? totalMtPowerKw.toFixed(1) : '0.0'} kW
+                        {energization.gridDelivering ? (totalMtPowerKw ?? 0).toFixed(1) : '0.0'} kW
                       </strong>
                     </div>
                     <div className="flex justify-between text-[10px] text-slate-500 mt-1 font-semibold">
                       <span>Corrente MT:</span>
-                      <span className="text-slate-700">{energization.gridDelivering ? currentMtAmperes.toFixed(2) : '0.00'} A</span>
+                      <span className="text-slate-700">{energization.gridDelivering ? (currentMtAmperes ?? 0).toFixed(2) : '0.00'} A</span>
                     </div>
                   </div>
                 </div>
